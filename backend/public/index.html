@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#c35a2e" />
+    <title>Doglog Prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <main class="app-shell">
+      <header class="hero">
+        <p class="eyebrow">DOGLOG MVP</p>
+        <h1>Track behavior quickly. Train with confidence.</h1>
+        <p class="subtitle">
+          One-tap walk logs paired with AI-split goals you can complete today.
+        </p>
+        <div class="stat-grid">
+          <article class="stat-card stat-good">
+            <p class="stat-label">Today positive</p>
+            <p id="todayPositive" class="stat-value">0</p>
+          </article>
+          <article class="stat-card stat-bad">
+            <p class="stat-label">Today negative</p>
+            <p id="todayNegative" class="stat-value">0</p>
+          </article>
+          <article class="stat-card stat-neutral">
+            <p class="stat-label">Queue</p>
+            <p id="queueCount" class="stat-value">0</p>
+          </article>
+        </div>
+      </header>
+
+      <section class="panel quick-log">
+        <div class="panel-head">
+          <h2>Quick Log</h2>
+          <p id="syncStatus" class="status-pill">Queue: 0</p>
+        </div>
+        <div class="tap-grid">
+          <button id="positiveBtn" class="tap-btn positive">Mark Positive</button>
+          <button id="negativeBtn" class="tap-btn negative">Mark Negative</button>
+        </div>
+
+        <div class="controls">
+          <label for="intensity">Intensity</label>
+          <input id="intensity" type="range" min="1" max="5" value="3" />
+          <p id="intensityValue">3</p>
+        </div>
+
+        <div class="controls">
+          <label for="tags">Tags (comma separated)</label>
+          <input id="tags" type="text" placeholder="barking, leash, calm check-in" />
+        </div>
+
+        <div class="controls">
+          <label for="notes">Notes</label>
+          <textarea id="notes" rows="2" placeholder="Optional context"></textarea>
+        </div>
+
+        <div class="row">
+          <button id="syncBtn" class="ghost-btn">Sync queued events</button>
+          <p class="helper-text">Auto-sync when online</p>
+        </div>
+      </section>
+
+      <section class="panel goals">
+        <div class="panel-head">
+          <h2>Goals</h2>
+          <p class="helper-text">Set outcome, then generate manageable steps.</p>
+        </div>
+        <div class="row">
+          <a href="/goals.html" class="primary-link">Open Goal Studio</a>
+        </div>
+        <form id="goalForm" class="goal-form">
+          <input
+            id="goalTitle"
+            type="text"
+            placeholder="Goal title (example: loose leash for 20 mins)"
+            required
+          />
+          <textarea
+            id="goalDescription"
+            rows="2"
+            placeholder="What does success look like?"
+          ></textarea>
+          <button type="submit" class="primary-btn">Create Goal</button>
+        </form>
+        <div id="goalList" class="goal-list"></div>
+      </section>
+
+      <section class="panel events">
+        <div class="panel-head">
+          <h2>Recent Events</h2>
+          <p class="helper-text">Newest first</p>
+        </div>
+        <div id="eventList" class="event-list"></div>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

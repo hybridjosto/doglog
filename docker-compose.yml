@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16
+    container_name: doglog-db
+    environment:
+      POSTGRES_USER: doglog
+      POSTGRES_PASSWORD: doglog
+      POSTGRES_DB: doglog
+    volumes:
+      - doglog-db-data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doglog -d doglog"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build:
+      context: ./backend
+    container_name: doglog-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://doglog:doglog@db:5432/doglog
+      PORT: 8080
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  doglog-db-data:

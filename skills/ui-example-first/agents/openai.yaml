@@ -1,0 +1,4 @@
+interface:
+  display_name: "UI Example First"
+  short_description: "Create and approve UI examples before coding functionality."
+  default_prompt: "Use this skill to require UI examples and explicit approval before implementing functionality."

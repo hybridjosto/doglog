@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#36e236" />
+    <title>Doglog Goal Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/goals.css" />
+  </head>
+  <body>
+    <div class="ios-status">
+      <span>9:41</span>
+      <span class="status-icons">LTE Wi-Fi 100%</span>
+    </div>
+
+    <header class="top-nav">
+      <a href="/" class="ghost-link">Back</a>
+      <h1>New Training Goal</h1>
+      <span class="nav-spacer"></span>
+    </header>
+
+    <main class="goal-shell">
+      <section class="goal-section">
+        <label for="goalName">What are you working on?</label>
+        <div class="goal-input-wrap">
+          <input id="goalName" type="text" placeholder="e.g., Stay for 30 seconds" />
+          <span class="star">★</span>
+        </div>
+      </section>
+
+      <section class="goal-section">
+        <div class="section-head">
+          <div>
+            <h2>Break it down</h2>
+            <p>Small steps lead to big wins</p>
+          </div>
+          <button id="addStepBtn" class="circle-btn" type="button" aria-label="Add step">
+            +
+          </button>
+        </div>
+        <div id="stepList" class="step-list"></div>
+      </section>
+
+      <section class="goal-section">
+        <h2>Dashboard Preview</h2>
+        <article class="preview-card">
+          <div class="preview-top">
+            <div>
+              <h3 id="previewGoalTitle">New Skill Goal</h3>
+              <p id="previewMilestone">Milestone 1 of 1</p>
+            </div>
+            <p id="previewProgress" class="progress">0%</p>
+          </div>
+          <div class="progress-track">
+            <div id="previewProgressBar" class="progress-fill"></div>
+          </div>
+          <p id="previewStreak">0 day streak</p>
+        </article>
+      </section>
+    </main>
+
+    <footer class="bottom-actions">
+      <label class="check-row" for="reminderDaily">
+        <input id="reminderDaily" type="checkbox" />
+        <span>Remind me to train daily</span>
+      </label>
+      <button id="saveGoalBtn" class="save-btn" type="button">Save Training Goal</button>
+    </footer>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script type="module" src="/goals.js"></script>
+  </body>
+</html>

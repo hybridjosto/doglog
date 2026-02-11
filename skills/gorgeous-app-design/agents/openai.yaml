@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gorgeous App Design"
+  short_description: "Craft bold, cohesive, production-ready app visuals."
+  default_prompt: "Use $gorgeous-app-design to design a polished app UI direction and implementation-ready style system."

@@ -1,0 +1,106 @@
+:root {
+  /* Color tokens */
+  --color-bg: #f6f2ea;
+  --color-surface: #fffdf8;
+  --color-text: #1e1a16;
+  --color-text-muted: #5f5951;
+  --color-accent: #c35a2e;
+  --color-accent-2: #3e6b6f;
+  --color-border: #dfd7cc;
+  --color-focus: #2d62ff;
+
+  /* Typography */
+  --font-heading: "Fraunces", Georgia, serif;
+  --font-body: "Manrope", "Segoe UI", sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+  --text-2xl: 2.25rem;
+  --line-tight: 1.2;
+  --line-normal: 1.5;
+
+  /* Spacing and shape */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.25rem;
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px rgba(30, 26, 22, 0.08);
+  --shadow-md: 0 8px 24px rgba(30, 26, 22, 0.12);
+  --shadow-lg: 0 20px 40px rgba(30, 26, 22, 0.14);
+
+  /* Motion */
+  --duration-fast: 120ms;
+  --duration-base: 220ms;
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(195, 90, 46, 0.16), transparent 45%),
+    radial-gradient(circle at 90% 20%, rgba(62, 107, 111, 0.16), transparent 40%),
+    var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  line-height: var(--line-normal);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading);
+  line-height: var(--line-tight);
+  letter-spacing: -0.01em;
+}
+
+.surface {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary {
+  border: 0;
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-4);
+  font-weight: 700;
+  transition: transform var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.reveal-in {
+  animation: reveal-in var(--duration-base) var(--ease-standard) both;
+}
+
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

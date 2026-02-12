@@ -310,7 +310,8 @@ app.post("/v1/goals/:id/generate-steps", async (req, res) => {
     );
 
     const aiRunId = aiRun.rows[0].id;
-    const steps = await generateGoalSteps(goal);
+    const generation = await generateGoalSteps(goal);
+    const steps = generation.steps;
 
     const orderResult = await pool.query(
       "select coalesce(max(step_order), -1) as current_max from goal_steps where goal_id = $1",
@@ -346,10 +347,25 @@ app.post("/v1/goals/:id/generate-steps", async (req, res) => {
       set status = 'success', response_payload = $2::jsonb, completed_at = now()
       where id = $1
     `,
-      [aiRunId, JSON.stringify({ steps: inserted })],
+      [
+        aiRunId,
+        JSON.stringify({
+          steps: inserted,
+          generation_mode: generation.generationMode,
+          provider: generation.provider,
+          model: generation.model,
+          notice: generation.notice || null,
+        }),
+      ],
     );
 
-    return res.json({ steps: inserted });
+    return res.json({
+      steps: inserted,
+      generation_mode: generation.generationMode,
+      provider: generation.provider,
+      model: generation.model,
+      notice: generation.notice || null,
+    });
   } catch (error) {
     try {
       await pool.query(
@@ -410,7 +426,13 @@ app.listen(port, () => {
 
 async function generateGoalSteps(goal) {
   if (!process.env.OPENAI_API_KEY) {
-    return fallbackSteps(goal);
+    return {
+      steps: fallbackSteps(goal),
+      generationMode: "fallback",
+      provider: "fallback",
+      model: "deterministic-fallback",
+      notice: "Cloud AI key missing. Fallback plan generated.",
+    };
   }
 
   try {
@@ -462,13 +484,25 @@ Success criteria: ${goal.success_criteria || ""}
       throw new Error("openai response missing steps array");
     }
 
-    return parsed.steps.map((step) => ({
-      title: String(step.title || "Training step").slice(0, 120),
-      details: String(step.details || "").slice(0, 500),
-      estimated_minutes: clampMinutes(step.estimated_minutes),
-    }));
+    return {
+      steps: parsed.steps.map((step) => ({
+        title: String(step.title || "Training step").slice(0, 120),
+        details: String(step.details || "").slice(0, 500),
+        estimated_minutes: clampMinutes(step.estimated_minutes),
+      })),
+      generationMode: "cloud",
+      provider: "openai",
+      model,
+      notice: null,
+    };
   } catch (_error) {
-    return fallbackSteps(goal);
+    return {
+      steps: fallbackSteps(goal),
+      generationMode: "fallback",
+      provider: "fallback",
+      model: "deterministic-fallback",
+      notice: "Cloud AI unavailable. Fallback plan generated.",
+    };
   }
 }
 

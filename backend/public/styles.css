@@ -262,6 +262,13 @@ body {
   background: linear-gradient(120deg, #efe228, #faed27);
 }
 
+.btn-link-secondary {
+  margin-left: 0.45rem;
+  background: var(--soft);
+  color: var(--primary-ink);
+  border: 1px solid var(--border);
+}
+
 .steps-section,
 .recent-section {
   margin-top: 1rem;

@@ -128,7 +128,7 @@ async function saveGoal() {
   saveGoalBtn.disabled = true;
   saveGoalBtn.textContent = "Saving...";
   try {
-    const response = await fetch("/v1/goals", {
+    const createResponse = await fetch("/v1/goals", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -137,15 +137,59 @@ async function saveGoal() {
         steps: validSteps,
       }),
     });
-    if (!response.ok) {
+    if (!createResponse.ok) {
       throw new Error("unable to save goal");
     }
+
+    const createPayload = await createResponse.json();
+    const goalId = createPayload?.goal?.id;
+    if (!goalId) {
+      throw new Error("goal saved but id missing");
+    }
+
     showToast("Goal saved");
+    saveGoalBtn.textContent = "Generating AI steps...";
+    const generateResponse = await fetch(`/v1/goals/${goalId}/generate-steps`, {
+      method: "POST",
+    });
+    if (!generateResponse.ok) {
+      sessionStorage.setItem(
+        "doglog_goal_ai_status",
+        JSON.stringify({
+          mode: "error",
+          notice: "Goal saved, but AI generation failed. You can retry from Home.",
+        }),
+      );
+      showToast("Goal saved, AI generation failed");
+      window.setTimeout(() => {
+        window.location.href = "/?goal_sync=1";
+      }, 900);
+      return;
+    }
+
+    const generatePayload = await generateResponse.json();
+    const generationMode = generatePayload?.generation_mode || "fallback";
+    const generationNotice =
+      generatePayload?.notice ||
+      (generationMode === "cloud"
+        ? "Goal + AI steps ready."
+        : "Goal saved with fallback steps.");
+
+    sessionStorage.setItem(
+      "doglog_goal_ai_status",
+      JSON.stringify({ mode: generationMode, notice: generationNotice }),
+    );
+
+    showToast(
+      generationMode === "cloud"
+        ? "Goal + AI steps ready"
+        : "Fallback steps ready",
+    );
     window.setTimeout(() => {
-      window.location.href = "/";
-    }, 700);
+      window.location.href = "/?goal_sync=1";
+    }, 900);
   } catch (_error) {
-    showToast("Save failed");
+    showToast("Save failed. Check connection and retry.");
   } finally {
     saveGoalBtn.disabled = false;
     saveGoalBtn.textContent = "Save Training Goal";

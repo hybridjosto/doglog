@@ -16,15 +16,24 @@ const activeGoalProgressText = document.getElementById("activeGoalProgressText")
 const activeGoalMastery = document.getElementById("activeGoalMastery");
 const activeGoalProgressBar = document.getElementById("activeGoalProgressBar");
 const activeGoalHint = document.getElementById("activeGoalHint");
+const retryAiBtn = document.getElementById("retryAiBtn");
 const toast = document.getElementById("toast");
+let hasPendingGoalRefreshHint = false;
+let activeGoalId = null;
 
 positiveBtn?.addEventListener("click", () => queueEvent("positive"));
 negativeBtn?.addEventListener("click", () => queueEvent("negative"));
 syncBtn?.addEventListener("click", syncEvents);
 nextStepsList?.addEventListener("click", handleStepClick);
+retryAiBtn?.addEventListener("click", retryAiGeneration);
 
 window.addEventListener("online", () => {
   syncEvents();
+});
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    refreshFromServer();
+  }
 });
 
 if ("serviceWorker" in navigator) {
@@ -35,10 +44,15 @@ boot();
 
 async function boot() {
   refreshQueueUI();
-  await Promise.all([loadEvents(), loadGoals()]);
+  consumeGoalStatusHint();
+  await refreshFromServer();
   if (navigator.onLine) {
     syncEvents();
   }
+}
+
+async function refreshFromServer() {
+  await Promise.all([loadEvents(), loadGoals()]);
 }
 
 function queueEvent(valence) {
@@ -112,6 +126,7 @@ async function loadEvents() {
     if (eventList) {
       eventList.innerHTML = `<p class="empty-copy">Events unavailable right now.</p>`;
     }
+    showToast("Could not refresh events");
   }
 }
 
@@ -205,6 +220,7 @@ async function loadGoals() {
   } catch (_error) {
     renderActiveGoal(null);
     renderNextSteps(null);
+    showToast("Could not refresh goals");
   }
 }
 
@@ -213,14 +229,19 @@ function renderActiveGoal(goal) {
     return;
   }
   if (!goal) {
+    activeGoalId = null;
     activeGoalTitle.textContent = "No active goal yet";
     activeGoalProgressText.textContent = "0% Completed";
     activeGoalMastery.textContent = "Mastery Level 0";
     activeGoalProgressBar.style.width = "0%";
     activeGoalHint.textContent =
       "Create your first goal in Goal Studio to get a daily roadmap.";
+    if (retryAiBtn) {
+      retryAiBtn.hidden = true;
+    }
     return;
   }
+  activeGoalId = goal.id;
 
   const steps = Array.isArray(goal.steps) ? goal.steps : [];
   const done = steps.filter((step) => step.status === "done").length;
@@ -235,6 +256,9 @@ function renderActiveGoal(goal) {
     steps.length > 0
       ? "Consistency wins. Keep reinforcing eye contact and calm check-ins."
       : "Generate steps to break this goal into small, daily wins.";
+  if (retryAiBtn) {
+    retryAiBtn.hidden = steps.length > 0;
+  }
 }
 
 function renderNextSteps(goal) {
@@ -243,10 +267,14 @@ function renderNextSteps(goal) {
   }
   if (!goal || !Array.isArray(goal.steps) || goal.steps.length === 0) {
     taskCount.textContent = "0 Tasks";
-    nextStepsList.innerHTML =
-      '<p class="empty-copy">No steps yet. Generate steps from your goal page.</p>';
+    nextStepsList.innerHTML = `<p class="empty-copy">${
+      hasPendingGoalRefreshHint
+        ? "AI steps are generating. Pull to refresh or wait a moment."
+        : "No steps yet. Generate steps from your goal page."
+    }</p>`;
     return;
   }
+  hasPendingGoalRefreshHint = false;
 
   const pending = goal.steps.filter((step) => step.status !== "done").slice(0, 3);
   const done = goal.steps.filter((step) => step.status === "done").slice(0, 1);
@@ -357,4 +385,58 @@ function showToast(message) {
   toastTimer = setTimeout(() => {
     toast.classList.remove("show");
   }, 1800);
+}
+
+function consumeGoalStatusHint() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("goal_sync")) {
+    hasPendingGoalRefreshHint = true;
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.delete("goal_sync");
+    history.replaceState({}, "", nextUrl.pathname + nextUrl.search + nextUrl.hash);
+  }
+
+  const rawStatus = sessionStorage.getItem("doglog_goal_ai_status");
+  if (!rawStatus) {
+    return;
+  }
+  sessionStorage.removeItem("doglog_goal_ai_status");
+  try {
+    const status = JSON.parse(rawStatus);
+    if (status?.notice) {
+      showToast(String(status.notice));
+    }
+    if (status?.mode === "error" || status?.mode === "fallback") {
+      if (status.mode === "error") {
+        hasPendingGoalRefreshHint = false;
+      }
+    }
+  } catch {
+    // ignore malformed status payloads
+  }
+}
+
+async function retryAiGeneration() {
+  if (!activeGoalId || !retryAiBtn) {
+    return;
+  }
+  retryAiBtn.disabled = true;
+  const previousLabel = retryAiBtn.textContent;
+  retryAiBtn.textContent = "Retrying...";
+  try {
+    const response = await fetch(`/v1/goals/${activeGoalId}/generate-steps`, {
+      method: "POST",
+    });
+    if (!response.ok) {
+      throw new Error("retry failed");
+    }
+    const payload = await response.json();
+    showToast(payload?.notice || "AI steps generated");
+    await loadGoals();
+  } catch {
+    showToast("AI retry failed");
+  } finally {
+    retryAiBtn.disabled = false;
+    retryAiBtn.textContent = previousLabel;
+  }
 }

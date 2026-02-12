@@ -1,17 +1,18 @@
 :root {
-  --bg-light: #f6f8f6;
-  --bg-dark: #112111;
-  --neutral-soft: #e8eee8;
-  --neutral-border: #d1dcd1;
-  --text: #0f1f0f;
-  --muted: #567056;
-  --primary: #36e236;
-  --primary-deep: #23b523;
+  --bg-light: #f8f7ef;
+  --bg-dark: #1f262b;
+  --neutral-soft: #edf1f3;
+  --neutral-border: #d6dce0;
+  --text: #36454f;
+  --muted: #5d6b73;
+  --primary: #faed27;
+  --primary-deep: #e5d820;
+  --primary-ink: #36454f;
   --danger: #d15b5b;
   --radius-sm: 0.5rem;
   --radius-md: 0.85rem;
   --radius-lg: 1rem;
-  --shadow: 0 10px 30px rgba(17, 33, 17, 0.1);
+  --shadow: 0 10px 30px rgba(54, 69, 79, 0.16);
 }
 
 * {
@@ -24,8 +25,8 @@ body {
   font-family: "Space Grotesk", "Segoe UI", sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at 85% -5%, rgba(54, 226, 54, 0.17), transparent 35%),
-    radial-gradient(circle at 10% 100%, rgba(54, 226, 54, 0.14), transparent 40%),
+    radial-gradient(circle at 85% -5%, rgba(250, 237, 39, 0.24), transparent 35%),
+    radial-gradient(circle at 10% 100%, rgba(54, 69, 79, 0.1), transparent 40%),
     var(--bg-light);
 }
 
@@ -39,7 +40,7 @@ body {
   padding: 0.75rem 1rem;
   font-size: 0.78rem;
   font-weight: 700;
-  background: rgba(246, 248, 246, 0.88);
+  background: rgba(248, 247, 239, 0.92);
   backdrop-filter: blur(8px);
 }
 
@@ -57,7 +58,7 @@ body {
   justify-content: space-between;
   padding: 0.8rem 1rem;
   border-bottom: 1px solid var(--neutral-border);
-  background: rgba(246, 248, 246, 0.88);
+  background: rgba(248, 247, 239, 0.92);
   backdrop-filter: blur(8px);
 }
 
@@ -67,7 +68,7 @@ body {
 }
 
 .ghost-link {
-  color: var(--primary-deep);
+  color: var(--primary-ink);
   font-weight: 700;
   text-decoration: none;
 }
@@ -120,7 +121,7 @@ body {
   top: 50%;
   right: 0.75rem;
   transform: translateY(-50%);
-  color: var(--primary-deep);
+  color: var(--primary-ink);
   font-size: 1.2rem;
 }
 
@@ -143,8 +144,8 @@ body {
   height: 2rem;
   border: 0;
   border-radius: 999px;
-  background: rgba(54, 226, 54, 0.18);
-  color: var(--primary-deep);
+  background: rgba(250, 237, 39, 0.36);
+  color: var(--primary-ink);
   font-size: 1.2rem;
   font-weight: 700;
   cursor: pointer;
@@ -164,7 +165,7 @@ body {
   background: #fff;
   border: 1px solid var(--neutral-border);
   border-radius: var(--radius-md);
-  box-shadow: 0 2px 8px rgba(17, 33, 17, 0.06);
+  box-shadow: 0 2px 8px rgba(54, 69, 79, 0.1);
 }
 
 .step-index {
@@ -173,8 +174,8 @@ body {
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: rgba(54, 226, 54, 0.2);
-  color: var(--primary-deep);
+  background: rgba(250, 237, 39, 0.42);
+  color: var(--primary-ink);
   font-weight: 800;
   font-size: 0.8rem;
 }
@@ -227,10 +228,10 @@ body {
 
 .preview-card {
   position: relative;
-  border: 2px dashed rgba(54, 226, 54, 0.35);
+  border: 2px dashed rgba(54, 69, 79, 0.28);
   border-radius: 1rem;
   padding: 1rem;
-  background: linear-gradient(145deg, rgba(54, 226, 54, 0.11), rgba(255, 255, 255, 0.95));
+  background: linear-gradient(145deg, rgba(250, 237, 39, 0.2), rgba(255, 255, 255, 0.96));
 }
 
 .preview-top {
@@ -255,7 +256,7 @@ body {
   margin: 0;
   font-size: 1.5rem;
   font-weight: 800;
-  color: rgba(35, 181, 35, 0.58);
+  color: rgba(54, 69, 79, 0.7);
 }
 
 .progress-track {
@@ -288,7 +289,7 @@ body {
   left: 0;
   padding: 0.9rem 1rem 1.2rem;
   background:
-    linear-gradient(to top, rgba(246, 248, 246, 1), rgba(246, 248, 246, 0.95), rgba(246, 248, 246, 0));
+    linear-gradient(to top, rgba(248, 247, 239, 1), rgba(248, 247, 239, 0.95), rgba(248, 247, 239, 0));
 }
 
 .check-row {
@@ -309,7 +310,7 @@ body {
   border: 0;
   border-radius: 0.9rem;
   padding: 0.95rem 1rem;
-  color: #fff;
+  color: var(--primary-ink);
   background: linear-gradient(145deg, var(--primary), var(--primary-deep));
   font-size: 0.96rem;
   font-weight: 800;
@@ -330,7 +331,7 @@ body {
   border-radius: var(--radius-sm);
   padding: 0.45rem 0.65rem;
   color: #fff;
-  background: #0f1f0f;
+  background: var(--primary-ink);
   opacity: 0;
   transform: translateY(10px);
   transition: opacity 180ms ease, transform 180ms ease;
@@ -344,6 +345,6 @@ body {
 input:focus-visible,
 button:focus-visible,
 a:focus-visible {
-  outline: 3px solid #2d62ff;
+  outline: 3px solid var(--primary-ink);
   outline-offset: 2px;
 }

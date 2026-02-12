@@ -2,46 +2,40 @@ const queueKey = "doglog_event_queue_v1";
 
 const positiveBtn = document.getElementById("positiveBtn");
 const negativeBtn = document.getElementById("negativeBtn");
-const intensityInput = document.getElementById("intensity");
-const intensityValue = document.getElementById("intensityValue");
-const tagsInput = document.getElementById("tags");
-const notesInput = document.getElementById("notes");
 const syncBtn = document.getElementById("syncBtn");
 const syncStatus = document.getElementById("syncStatus");
-const queueCount = document.getElementById("queueCount");
-const todayPositive = document.getElementById("todayPositive");
-const todayNegative = document.getElementById("todayNegative");
-const goalForm = document.getElementById("goalForm");
-const goalTitleInput = document.getElementById("goalTitle");
-const goalDescriptionInput = document.getElementById("goalDescription");
-const goalList = document.getElementById("goalList");
+const queueCountNav = document.getElementById("queueCountNav");
+const winsCount = document.getElementById("winsCount");
+const workCount = document.getElementById("workCount");
+const summaryBars = document.getElementById("summaryBars");
 const eventList = document.getElementById("eventList");
+const nextStepsList = document.getElementById("nextStepsList");
+const taskCount = document.getElementById("taskCount");
+const activeGoalTitle = document.getElementById("activeGoalTitle");
+const activeGoalProgressText = document.getElementById("activeGoalProgressText");
+const activeGoalMastery = document.getElementById("activeGoalMastery");
+const activeGoalProgressBar = document.getElementById("activeGoalProgressBar");
+const activeGoalHint = document.getElementById("activeGoalHint");
 const toast = document.getElementById("toast");
 
-intensityInput.addEventListener("input", () => {
-  intensityValue.textContent = intensityInput.value;
-});
-
-positiveBtn.addEventListener("click", () => queueEvent("positive"));
-negativeBtn.addEventListener("click", () => queueEvent("negative"));
-syncBtn.addEventListener("click", syncEvents);
-goalForm.addEventListener("submit", createGoal);
+positiveBtn?.addEventListener("click", () => queueEvent("positive"));
+negativeBtn?.addEventListener("click", () => queueEvent("negative"));
+syncBtn?.addEventListener("click", syncEvents);
+nextStepsList?.addEventListener("click", handleStepClick);
 
 window.addEventListener("online", () => {
   syncEvents();
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js").catch(() => {
-    // no-op if service worker cannot register
-  });
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
 }
 
 boot();
 
 async function boot() {
-  refreshQueueLabel();
-  await Promise.all([loadGoals(), loadEvents()]);
+  refreshQueueUI();
+  await Promise.all([loadEvents(), loadGoals()]);
   if (navigator.onLine) {
     syncEvents();
   }
@@ -53,21 +47,16 @@ function queueEvent(valence) {
     client_event_id: crypto.randomUUID(),
     occurred_at: new Date().toISOString(),
     valence,
-    intensity: Number.parseInt(intensityInput.value, 10),
-    tags: tagsInput.value
-      .split(",")
-      .map((tag) => tag.trim().toLowerCase())
-      .filter(Boolean),
-    notes: notesInput.value.trim() || null,
-    context: {},
+    intensity: 3,
+    tags: [],
+    notes: null,
+    context: { source: "quick_log_home" },
   };
 
   queue.push(event);
   writeQueue(queue);
-  notesInput.value = "";
-  refreshQueueLabel(`${capitalize(valence)} queued`);
-  showToast(`${capitalize(valence)} event queued`);
-
+  refreshQueueUI(`${capitalize(valence)} logged`);
+  showToast(`${capitalize(valence)} logged`);
   if (navigator.onLine) {
     syncEvents();
   }
@@ -76,198 +65,252 @@ function queueEvent(valence) {
 async function syncEvents() {
   const queue = readQueue();
   if (queue.length === 0) {
-    refreshQueueLabel("Queue: 0");
+    refreshQueueUI("Queue: 0");
     return;
   }
 
   try {
-    syncBtn.disabled = true;
+    if (syncBtn) {
+      syncBtn.disabled = true;
+      syncBtn.textContent = "Syncing...";
+    }
     const response = await fetch("/v1/events/batch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ events: queue }),
     });
     if (!response.ok) {
-      throw new Error(`Sync failed: ${response.status}`);
+      throw new Error(`sync failed: ${response.status}`);
     }
 
     writeQueue([]);
-    refreshQueueLabel(`Synced ${queue.length}`);
-    showToast(`Synced ${queue.length} event${queue.length === 1 ? "" : "s"}`);
+    refreshQueueUI(`Synced ${queue.length}`);
+    showToast(`Synced ${queue.length} logs`);
     await loadEvents();
   } catch (_error) {
-    refreshQueueLabel(`Offline queue: ${queue.length}`);
-    showToast("Still offline. Queue kept locally.");
+    refreshQueueUI(`Offline queue: ${queue.length}`);
+    showToast("Offline. Queue preserved.");
   } finally {
-    syncBtn.disabled = false;
+    if (syncBtn) {
+      syncBtn.disabled = false;
+      syncBtn.textContent = "Sync Queue";
+    }
   }
 }
 
 async function loadEvents() {
   try {
-    const response = await fetch("/v1/events?limit=15");
+    const response = await fetch("/v1/events?limit=80");
     if (!response.ok) {
-      throw new Error("unable to load events");
+      throw new Error("failed to load events");
     }
     const payload = await response.json();
-    const events = payload.events || [];
-    renderEvents(events);
-    renderDailyStats(events);
+    const events = Array.isArray(payload.events) ? payload.events : [];
+    renderSummary(events);
+    renderRecentEvents(events.slice(0, 5));
   } catch (_error) {
-    eventList.innerHTML = `<p class="meta">Events unavailable right now.</p>`;
+    if (eventList) {
+      eventList.innerHTML = `<p class="empty-copy">Events unavailable right now.</p>`;
+    }
   }
 }
 
-function renderEvents(events) {
-  if (events.length === 0) {
-    eventList.innerHTML = `<p class="meta">No events yet.</p>`;
-    return;
+function renderSummary(events) {
+  const today = startOfDay(new Date());
+  const todayEvents = events.filter((event) => startOfDay(new Date(event.occurred_at)) === today);
+  const wins = todayEvents.filter((event) => event.valence === "positive").length;
+  const work = todayEvents.filter((event) => event.valence === "negative").length;
+
+  if (winsCount) {
+    winsCount.textContent = String(wins);
+  }
+  if (workCount) {
+    workCount.textContent = String(work);
   }
 
-  eventList.innerHTML = events
-    .map((event) => {
-      const date = new Date(event.occurred_at).toLocaleString();
-      const tags = Array.isArray(event.tags) ? event.tags.join(", ") : "";
+  renderBars(todayEvents);
+}
+
+function renderBars(events) {
+  if (!summaryBars) {
+    return;
+  }
+  const slots = [
+    { label: "8 AM", hour: 8 },
+    { label: "11 AM", hour: 11 },
+    { label: "2 PM", hour: 14 },
+    { label: "5 PM", hour: 17 },
+    { label: "NOW", hour: new Date().getHours() },
+  ];
+
+  const counts = slots.map((slot) =>
+    events.filter((event) => new Date(event.occurred_at).getHours() <= slot.hour).length,
+  );
+  const max = Math.max(1, ...counts);
+
+  summaryBars.innerHTML = slots
+    .map((slot, idx) => {
+      const pct = Math.max(8, Math.round((counts[idx] / max) * 100));
       return `
-        <article class="event-card">
-          <h3>${event.valence === "positive" ? "Positive" : "Negative"} (${event.intensity}/5)</h3>
-          <p class="meta">${date}</p>
-          <p class="meta">${event.notes || "No notes"}</p>
-          <div class="pill-row">
-            ${
-              tags
-                ? tags
-                    .split(", ")
-                    .map((item) => `<span class="pill">${escapeHtml(item)}</span>`)
-                    .join("")
-                : '<span class="pill">No tags</span>'
-            }
+        <div class="bar-col">
+          <div class="bar-shell">
+            <div class="bar-fill" style="height:${pct}%"></div>
           </div>
-        </article>
+          <span class="bar-label">${slot.label}</span>
+        </div>
       `;
     })
     .join("");
 }
 
-async function createGoal(evt) {
-  evt.preventDefault();
-  const title = goalTitleInput.value.trim();
-  if (!title) {
+function renderRecentEvents(events) {
+  if (!eventList) {
     return;
   }
-
-  const payload = {
-    title,
-    description: goalDescriptionInput.value.trim() || null,
-  };
-
-  try {
-    const response = await fetch("/v1/goals", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-      throw new Error("unable to create goal");
-    }
-    goalForm.reset();
-    await loadGoals();
-  } catch (_error) {
-    // keeping UI quiet for prototype
+  if (events.length === 0) {
+    eventList.innerHTML = `<p class="empty-copy">No events yet. Tap a quick log button to start.</p>`;
+    return;
   }
+  eventList.innerHTML = events
+    .map((event) => {
+      const type = event.valence === "positive" ? "Good Boy" : "Needs Work";
+      const time = new Date(event.occurred_at).toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+      return `
+        <article class="event-card">
+          <div class="event-top">
+            <p class="event-type">${type}</p>
+            <p class="event-time">${time}</p>
+          </div>
+          <p class="event-note">${event.notes || "Quick log entry"}</p>
+        </article>
+      `;
+    })
+    .join("");
 }
 
 async function loadGoals() {
   try {
     const response = await fetch("/v1/goals");
     if (!response.ok) {
-      throw new Error("unable to load goals");
+      throw new Error("failed to load goals");
     }
     const payload = await response.json();
-    renderGoals(payload.goals || []);
+    const goals = Array.isArray(payload.goals) ? payload.goals : [];
+    const activeGoal = goals.find((goal) => goal.status === "active") || goals[0];
+    renderActiveGoal(activeGoal);
+    renderNextSteps(activeGoal);
   } catch (_error) {
-    goalList.innerHTML = `<p class="meta">Goals unavailable right now.</p>`;
+    renderActiveGoal(null);
+    renderNextSteps(null);
   }
 }
 
-function renderGoals(goals) {
-  if (goals.length === 0) {
-    goalList.innerHTML = `<p class="meta">No goals yet.</p>`;
+function renderActiveGoal(goal) {
+  if (!activeGoalTitle || !activeGoalProgressText || !activeGoalMastery || !activeGoalHint) {
+    return;
+  }
+  if (!goal) {
+    activeGoalTitle.textContent = "No active goal yet";
+    activeGoalProgressText.textContent = "0% Completed";
+    activeGoalMastery.textContent = "Mastery Level 0";
+    activeGoalProgressBar.style.width = "0%";
+    activeGoalHint.textContent =
+      "Create your first goal in Goal Studio to get a daily roadmap.";
     return;
   }
 
-  goalList.innerHTML = goals
-    .map((goal) => {
-      const steps = Array.isArray(goal.steps) ? goal.steps : [];
-      const stepHtml =
-        steps.length === 0
-          ? `<p class="meta">No steps yet.</p>`
-          : `<div class="step-list">
-            ${steps
-              .map(
-                (step) => `
-              <div class="step-item ${step.status === "done" ? "step-done" : ""}">
-                <div>
-                  <strong>${escapeHtml(step.title)}</strong>
-                  <p class="meta">${step.status} • ${step.estimated_minutes || 10}m</p>
-                </div>
-                ${
-                  step.status !== "done"
-                    ? `<button data-step-id="${step.id}" class="done-btn">Done</button>`
-                    : `<span class="meta">Done</span>`
-                }
-              </div>
-            `,
-              )
-              .join("")}
-          </div>`;
+  const steps = Array.isArray(goal.steps) ? goal.steps : [];
+  const done = steps.filter((step) => step.status === "done").length;
+  const progress = steps.length > 0 ? Math.round((done / steps.length) * 100) : 0;
+  const mastery = Math.min(5, Math.max(1, Math.ceil(progress / 20)));
 
+  activeGoalTitle.textContent = goal.title || "Active goal";
+  activeGoalProgressText.textContent = `${progress}% Completed`;
+  activeGoalMastery.textContent = `Mastery Level ${mastery}`;
+  activeGoalProgressBar.style.width = `${progress}%`;
+  activeGoalHint.textContent =
+    steps.length > 0
+      ? "Consistency wins. Keep reinforcing eye contact and calm check-ins."
+      : "Generate steps to break this goal into small, daily wins.";
+}
+
+function renderNextSteps(goal) {
+  if (!nextStepsList || !taskCount) {
+    return;
+  }
+  if (!goal || !Array.isArray(goal.steps) || goal.steps.length === 0) {
+    taskCount.textContent = "0 Tasks";
+    nextStepsList.innerHTML =
+      '<p class="empty-copy">No steps yet. Generate steps from your goal page.</p>';
+    return;
+  }
+
+  const pending = goal.steps.filter((step) => step.status !== "done").slice(0, 3);
+  const done = goal.steps.filter((step) => step.status === "done").slice(0, 1);
+  const display = [...pending, ...done].slice(0, 3);
+  taskCount.textContent = `${display.length} Tasks`;
+
+  nextStepsList.innerHTML = display
+    .map((step) => {
+      const isDone = step.status === "done";
       return `
-        <article class="goal-card">
-          <h3>${escapeHtml(goal.title)}</h3>
-          <p class="meta">${escapeHtml(goal.description || "No description")}</p>
-          <p class="meta">Status: ${goal.status}</p>
-          <div class="row">
-            <button data-goal-id="${goal.id}" class="primary-btn generate-btn">Generate Steps</button>
+        <article class="step-card ${isDone ? "is-done" : ""}">
+          <button class="step-check" data-step-id="${step.id}" ${
+            isDone ? "disabled" : ""
+          } aria-label="Mark step done">
+            <span class="material-icons">check</span>
+          </button>
+          <div class="step-main">
+            <p class="step-title">${escapeHtml(step.title || "Step")}</p>
+            <p class="step-meta">${
+              isDone ? "Completed" : "Training Task"
+            } • ${step.estimated_minutes || 10} mins</p>
           </div>
-          ${stepHtml}
+          <span class="material-icons">${isDone ? "verified" : "chevron_right"}</span>
         </article>
       `;
     })
     .join("");
+}
 
-  for (const button of goalList.querySelectorAll(".generate-btn")) {
-    button.addEventListener("click", async () => {
-      const goalId = button.getAttribute("data-goal-id");
-      if (!goalId) {
-        return;
-      }
-      button.textContent = "Generating...";
-      button.disabled = true;
-      try {
-        await fetch(`/v1/goals/${goalId}/generate-steps`, { method: "POST" });
-        showToast("Goal steps generated");
-        await loadGoals();
-      } finally {
-        button.disabled = false;
-      }
-    });
+async function handleStepClick(event) {
+  const button = event.target.closest("button[data-step-id]");
+  if (!button) {
+    return;
   }
-
-  for (const button of goalList.querySelectorAll(".done-btn")) {
-    button.addEventListener("click", async () => {
-      const stepId = button.getAttribute("data-step-id");
-      if (!stepId) {
-        return;
-      }
-      await fetch(`/v1/goal-steps/${stepId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "done" }),
-      });
-      showToast("Step marked done");
-      await loadGoals();
+  const stepId = button.getAttribute("data-step-id");
+  if (!stepId) {
+    return;
+  }
+  button.disabled = true;
+  try {
+    const response = await fetch(`/v1/goal-steps/${stepId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "done" }),
     });
+    if (!response.ok) {
+      throw new Error("update failed");
+    }
+    showToast("Step completed");
+    await loadGoals();
+  } catch (_error) {
+    button.disabled = false;
+    showToast("Could not complete step");
+  }
+}
+
+function refreshQueueUI(text) {
+  const queue = readQueue();
+  if (syncStatus) {
+    syncStatus.textContent = text || `Queue: ${queue.length}`;
+  }
+  if (queueCountNav) {
+    queueCountNav.textContent = String(queue.length);
+    queueCountNav.style.display = queue.length > 0 ? "grid" : "none";
   }
 }
 
@@ -275,7 +318,7 @@ function readQueue() {
   try {
     const raw = localStorage.getItem(queueKey);
     return raw ? JSON.parse(raw) : [];
-  } catch (_error) {
+  } catch {
     return [];
   }
 }
@@ -284,53 +327,21 @@ function writeQueue(events) {
   localStorage.setItem(queueKey, JSON.stringify(events));
 }
 
-function refreshQueueLabel(text) {
-  const queue = readQueue();
-  syncStatus.textContent = text || `Queue: ${queue.length}`;
-  queueCount.textContent = String(queue.length);
+function startOfDay(date) {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return d.getTime();
 }
 
 function capitalize(value) {
-  return value.slice(0, 1).toUpperCase() + value.slice(1);
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
-
-function renderDailyStats(events) {
-  const today = new Date();
-  const todayKey = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-  ).toISOString();
-
-  let positive = 0;
-  let negative = 0;
-  for (const event of events) {
-    const eventDate = new Date(event.occurred_at);
-    const eventKey = new Date(
-      eventDate.getFullYear(),
-      eventDate.getMonth(),
-      eventDate.getDate(),
-    ).toISOString();
-
-    if (eventKey !== todayKey) {
-      continue;
-    }
-    if (event.valence === "positive") {
-      positive += 1;
-    } else if (event.valence === "negative") {
-      negative += 1;
-    }
-  }
-
-  todayPositive.textContent = String(positive);
-  todayNegative.textContent = String(negative);
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }
 
 let toastTimer = null;

@@ -3,7 +3,7 @@
   "short_name": "Doglog",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f7ede2",
-  "theme_color": "#0d3b66",
+  "background_color": "#F8F7EF",
+  "theme_color": "#36454F",
   "icons": []
 }

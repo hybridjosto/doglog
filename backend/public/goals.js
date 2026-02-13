@@ -1,8 +1,5 @@
 const goalNameInput = document.getElementById("goalName");
-const goalDescriptionInput = document.getElementById("goalDescription");
 const setActiveGoalInput = document.getElementById("setActiveGoal");
-const addStepBtn = document.getElementById("addStepBtn");
-const stepList = document.getElementById("stepList");
 const saveGoalBtn = document.getElementById("saveGoalBtn");
 const previewGoalTitle = document.getElementById("previewGoalTitle");
 const previewMilestone = document.getElementById("previewMilestone");
@@ -10,137 +7,16 @@ const previewProgress = document.getElementById("previewProgress");
 const previewProgressBar = document.getElementById("previewProgressBar");
 const toast = document.getElementById("toast");
 
-const steps = [];
-
 goalNameInput.addEventListener("input", renderPreview);
-addStepBtn.addEventListener("click", () => {
-  addStep({
-    title: "",
-    success_criteria: "",
-    details: "",
-    estimated_minutes: 10,
-  });
-});
 saveGoalBtn.addEventListener("click", saveGoal);
 
-bootstrap();
-
-function bootstrap() {
-  addStep({
-    title: "Eye contact for 3 seconds",
-    success_criteria: "3 successful eye contacts in one 5-minute block",
-    details: "Use high-value treats and mark eye contact quickly.",
-    estimated_minutes: 5,
-  });
-  addStep({
-    title: "",
-    success_criteria: "",
-    details: "",
-    estimated_minutes: 10,
-  });
-}
-
-function addStep(step) {
-  steps.push({
-    id: crypto.randomUUID(),
-    title: step.title || "",
-    success_criteria: step.success_criteria || "",
-    details: step.details || "",
-    estimated_minutes: step.estimated_minutes || 10,
-  });
-  renderSteps();
-  renderPreview();
-}
-
-function renderSteps() {
-  stepList.innerHTML = steps
-    .map((step, index) => {
-      return `
-        <article class="step-row">
-          <div class="step-index">${index + 1}</div>
-          <div class="step-fields">
-            <input
-              data-step-id="${step.id}"
-              data-field="title"
-              type="text"
-              placeholder="Action (example: calm heel for 10 steps)"
-              value="${escapeHtml(step.title)}"
-            />
-            <input
-              data-step-id="${step.id}"
-              data-field="success_criteria"
-              type="text"
-              placeholder="Success criteria (what counts as pass)"
-              value="${escapeHtml(step.success_criteria)}"
-            />
-            <input
-              data-step-id="${step.id}"
-              data-field="details"
-              type="text"
-              placeholder="Optional details (cue, reward, environment)"
-              value="${escapeHtml(step.details)}"
-            />
-            <div class="step-meta">
-              <span class="chip">Duration</span>
-              <input
-                class="step-time"
-                data-step-id="${step.id}"
-                data-field="estimated_minutes"
-                type="number"
-                min="1"
-                max="60"
-                value="${step.estimated_minutes}"
-                title="Minutes"
-              />
-              <span class="chip">mins</span>
-            </div>
-          </div>
-          <button class="step-remove" data-remove-id="${step.id}" type="button" aria-label="Remove step">
-            -
-          </button>
-        </article>
-      `;
-    })
-    .join("");
-
-  for (const input of stepList.querySelectorAll("input[data-step-id]")) {
-    input.addEventListener("input", (event) => {
-      const target = event.currentTarget;
-      const stepId = target.getAttribute("data-step-id");
-      const field = target.getAttribute("data-field");
-      const step = steps.find((item) => item.id === stepId);
-      if (!step || !field) {
-        return;
-      }
-      if (field === "estimated_minutes") {
-        step.estimated_minutes = clampMinutes(target.value);
-      } else {
-        step[field] = target.value;
-      }
-      renderPreview();
-    });
-  }
-
-  for (const button of stepList.querySelectorAll("button[data-remove-id]")) {
-    button.addEventListener("click", () => {
-      const removeId = button.getAttribute("data-remove-id");
-      const idx = steps.findIndex((item) => item.id === removeId);
-      if (idx >= 0) {
-        steps.splice(idx, 1);
-        renderSteps();
-        renderPreview();
-      }
-    });
-  }
-}
+renderPreview();
 
 function renderPreview() {
   const title = goalNameInput.value.trim();
-  const filledSteps = steps.filter(
-    (step) => step.title.trim().length > 0 && step.success_criteria.trim().length > 0,
-  );
   previewGoalTitle.textContent = title || "New Skill Goal";
-  previewMilestone.textContent = `Milestone 1 of ${Math.max(1, filledSteps.length)}`;
+  previewMilestone.textContent =
+    "AI will generate SMART milestones after save";
   previewProgress.textContent = "0%";
   previewProgressBar.style.width = "0%";
 }
@@ -153,18 +29,6 @@ async function saveGoal() {
     return;
   }
 
-  const validSteps = steps
-    .filter(
-      (step) =>
-        step.title.trim().length > 0 && step.success_criteria.trim().length > 0,
-    )
-    .map((step) => ({
-      title: step.title.trim(),
-      success_criteria: step.success_criteria.trim(),
-      details: step.details.trim() || null,
-      estimated_minutes: clampMinutes(step.estimated_minutes),
-    }));
-
   saveGoalBtn.disabled = true;
   saveGoalBtn.textContent = "Saving...";
   try {
@@ -173,9 +37,7 @@ async function saveGoal() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title,
-        description: goalDescriptionInput.value.trim() || null,
         status: "draft",
-        steps: validSteps,
       }),
     });
     if (!createResponse.ok) {
@@ -194,7 +56,7 @@ async function saveGoal() {
     }
 
     showToast("Goal saved");
-    saveGoalBtn.textContent = "Generating AI steps...";
+    saveGoalBtn.textContent = "Analyzing with SMART AI...";
     const generateResponse = await fetch(`/v1/goals/${goalId}/generate-steps`, {
       method: "POST",
     });
@@ -203,7 +65,7 @@ async function saveGoal() {
         "doglog_goal_ai_status",
         JSON.stringify({
           mode: "error",
-          notice: "Goal saved, but AI generation failed. You can retry from Home.",
+          notice: "Goal saved, but AI milestone generation failed. You can retry from Home.",
         }),
       );
       showToast("Goal saved, AI generation failed");
@@ -215,11 +77,14 @@ async function saveGoal() {
 
     const generatePayload = await generateResponse.json();
     const generationMode = generatePayload?.generation_mode || "fallback";
+    const milestoneCount = Array.isArray(generatePayload?.steps)
+      ? generatePayload.steps.length
+      : 0;
     const generationNotice =
       generatePayload?.notice ||
       (generationMode === "cloud"
-        ? "Goal + AI steps ready."
-        : "Goal saved with fallback steps.");
+        ? `SMART milestones ready (${milestoneCount})`
+        : `Fallback milestones ready (${milestoneCount})`);
 
     sessionStorage.setItem(
       "doglog_goal_ai_status",
@@ -227,7 +92,9 @@ async function saveGoal() {
     );
 
     showToast(
-      generationMode === "cloud" ? "Goal + AI steps ready" : "Fallback steps ready",
+      generationMode === "cloud"
+        ? "SMART milestones generated"
+        : "Fallback milestones generated",
     );
     window.setTimeout(() => {
       window.location.href = "/?goal_sync=1";
@@ -253,20 +120,4 @@ function showToast(message) {
   toastTimer = setTimeout(() => {
     toast.classList.remove("show");
   }, 1600);
-}
-
-function clampMinutes(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) {
-    return 10;
-  }
-  return Math.max(1, Math.min(60, Math.round(n)));
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
 }

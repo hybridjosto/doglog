@@ -7,6 +7,7 @@ RUN npm install --omit=dev
 
 COPY src /app/src
 COPY public /app/public
+COPY config /app/config
 
 EXPOSE 8080
 

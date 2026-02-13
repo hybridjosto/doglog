@@ -1,7 +1,9 @@
 import express from "express";
+import { readFile } from "node:fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { Pool } from "pg";
+import toml from "toml";
 
 const app = express();
 const port = Number.parseInt(process.env.PORT || "8080", 10);
@@ -16,6 +18,41 @@ const pool = new Pool({
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.join(__dirname, "..", "public");
+const promptsPath =
+  process.env.PROMPTS_FILE ||
+  path.join(__dirname, "..", "config", "prompts.toml");
+
+const defaultPrompts = {
+  generate_steps: {
+    system:
+      "You are a dog training assistant. Be specific, safe, and incremental.",
+    user_template: `
+Return only JSON. Create 4-7 practical training steps for this dog goal.
+Each step must have:
+- title (string)
+- details (string)
+- success_criteria (string)
+- estimated_minutes (number, 5-30)
+
+Goal title: {{goal_title}}
+Goal description: {{goal_description}}
+Success criteria: {{goal_success_criteria}}
+    `.trim(),
+  },
+  suggest_goal: {
+    system: "You select one practical focus goal for a dog training session.",
+    user_template: `
+Return only JSON with a single key: goal_id.
+Choose the best next training goal from this list for today's focus.
+Prefer goals with status active or paused, and avoid archived goals.
+
+Current active goal id: {{active_goal_id}}
+Goals: {{goals_json}}
+    `.trim(),
+  },
+};
+
+let prompts = defaultPrompts;
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(publicDir));
@@ -321,6 +358,20 @@ app.post("/v1/goals/:id/generate-steps", async (req, res) => {
     const generation = await generateGoalSteps(goal);
     const steps = generation.steps;
 
+    await pool.query(
+      `
+      update goals
+      set description = coalesce($2, description),
+          success_criteria = coalesce($3, success_criteria)
+      where id = $1
+    `,
+      [
+        goalId,
+        generation.refinedDescription || null,
+        generation.goalSuccessCriteria || null,
+      ],
+    );
+
     const orderResult = await pool.query(
       "select coalesce(max(step_order), -1) as current_max from goal_steps where goal_id = $1",
       [goalId],
@@ -599,22 +650,19 @@ async function generateGoalSteps(goal) {
       provider: "fallback",
       model: "deterministic-fallback",
       notice: "Cloud AI key missing. Fallback plan generated.",
+      refinedDescription:
+        "SMART fallback plan generated from the goal title with measurable milestones.",
+      goalSuccessCriteria:
+        "Complete all milestones with consistent pass outcomes over multiple sessions.",
     };
   }
 
   try {
-    const prompt = `
-Return only JSON. Create 4-7 practical training steps for this dog goal.
-Each step must have:
-- title (string)
-- details (string)
-- success_criteria (string)
-- estimated_minutes (number, 5-30)
-
-Goal title: ${goal.title}
-Goal description: ${goal.description || ""}
-Success criteria: ${goal.success_criteria || ""}
-    `.trim();
+    const prompt = renderPrompt(prompts.generate_steps.user_template, {
+      goal_title: goal.title || "",
+      goal_description: goal.description || "",
+      goal_success_criteria: goal.success_criteria || "",
+    });
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -629,8 +677,7 @@ Success criteria: ${goal.success_criteria || ""}
         messages: [
           {
             role: "system",
-            content:
-              "You are a dog training assistant. Be specific, safe, and incremental.",
+            content: prompts.generate_steps.system,
           },
           { role: "user", content: prompt },
         ],
@@ -648,12 +695,15 @@ Success criteria: ${goal.success_criteria || ""}
     }
 
     const parsed = JSON.parse(content);
-    if (!Array.isArray(parsed.steps) || parsed.steps.length === 0) {
-      throw new Error("openai response missing steps array");
+    const milestones = Array.isArray(parsed.milestones)
+      ? parsed.milestones
+      : parsed.steps;
+    if (!Array.isArray(milestones) || milestones.length === 0) {
+      throw new Error("openai response missing milestones array");
     }
 
     return {
-      steps: parsed.steps.map((step) => ({
+      steps: milestones.map((step) => ({
         title: String(step.title || "Training step").slice(0, 120),
         details: String(step.details || "").slice(0, 500),
         success_criteria: String(step.success_criteria || "").slice(0, 240),
@@ -663,6 +713,9 @@ Success criteria: ${goal.success_criteria || ""}
       provider: "openai",
       model,
       notice: null,
+      refinedDescription: String(parsed.refined_goal || "").slice(0, 500) || null,
+      goalSuccessCriteria:
+        String(parsed.goal_success_criteria || "").slice(0, 240) || null,
     };
   } catch (_error) {
     return {
@@ -671,6 +724,10 @@ Success criteria: ${goal.success_criteria || ""}
       provider: "fallback",
       model: "deterministic-fallback",
       notice: "Cloud AI unavailable. Fallback plan generated.",
+      refinedDescription:
+        "SMART fallback plan generated from the goal title with measurable milestones.",
+      goalSuccessCriteria:
+        "Complete all milestones with consistent pass outcomes over multiple sessions.",
     };
   }
 }
@@ -768,21 +825,17 @@ function isGoalStatus(status) {
 
 async function suggestGoalWithAI(goals, activeGoal) {
   try {
-    const prompt = `
-Return only JSON with a single key: goal_id.
-Choose the best next training goal from this list for today's focus.
-Prefer goals with status active or paused, and avoid archived goals.
-
-Current active goal id: ${activeGoal?.id || "none"}
-Goals: ${JSON.stringify(
-      goals.map((goal) => ({
-        id: goal.id,
-        title: goal.title,
-        status: goal.status,
-        updated_at: goal.updated_at,
-      })),
-    )}
-    `.trim();
+    const prompt = renderPrompt(prompts.suggest_goal.user_template, {
+      active_goal_id: activeGoal?.id || "none",
+      goals_json: JSON.stringify(
+        goals.map((goal) => ({
+          id: goal.id,
+          title: goal.title,
+          status: goal.status,
+          updated_at: goal.updated_at,
+        })),
+      ),
+    });
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -797,8 +850,7 @@ Goals: ${JSON.stringify(
         messages: [
           {
             role: "system",
-            content:
-              "You select one practical focus goal for a dog training session.",
+            content: prompts.suggest_goal.system,
           },
           { role: "user", content: prompt },
         ],
@@ -826,6 +878,7 @@ Goals: ${JSON.stringify(
 
 async function startServer() {
   try {
+    await loadPromptConfig();
     await ensureSchemaCompatibility();
     app.listen(port, () => {
       // eslint-disable-next-line no-console
@@ -886,4 +939,37 @@ async function ensureSchemaCompatibility() {
   } finally {
     client.release();
   }
+}
+
+async function loadPromptConfig() {
+  try {
+    const raw = await readFile(promptsPath, "utf8");
+    const parsed = toml.parse(raw);
+    prompts = {
+      generate_steps: {
+        ...defaultPrompts.generate_steps,
+        ...(parsed.generate_steps || {}),
+      },
+      suggest_goal: {
+        ...defaultPrompts.suggest_goal,
+        ...(parsed.suggest_goal || {}),
+      },
+    };
+    // eslint-disable-next-line no-console
+    console.log(`loaded prompt config from ${promptsPath}`);
+  } catch (error) {
+    prompts = defaultPrompts;
+    // eslint-disable-next-line no-console
+    console.warn(
+      `prompt config not loaded (${promptsPath}), using defaults: ${error.message}`,
+    );
+  }
+}
+
+function renderPrompt(template, variables) {
+  let result = template || "";
+  for (const [key, value] of Object.entries(variables)) {
+    result = result.replaceAll(`{{${key}}}`, String(value ?? ""));
+  }
+  return result;
 }

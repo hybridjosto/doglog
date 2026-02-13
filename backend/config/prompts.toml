@@ -1,0 +1,32 @@
+[generate_steps]
+system = "You are a dog training assistant. Be specific, safe, and incremental."
+user_template = """
+Return only JSON with keys:
+- refined_goal (string)
+- goal_success_criteria (string)
+- milestones (array with 3-7 items)
+
+Use SMART methodology to analyze the goal title.
+If the goal is too broad, split it into smaller measurable milestones.
+
+Each milestone item must have:
+- title (string)
+- details (string)
+- success_criteria (string)
+- estimated_minutes (number, 5-30)
+
+Goal title: {{goal_title}}
+Goal description: {{goal_description}}
+Success criteria: {{goal_success_criteria}}
+"""
+
+[suggest_goal]
+system = "You select one practical focus goal for a dog training session."
+user_template = """
+Return only JSON with a single key: goal_id.
+Choose the best next training goal from this list for today's focus.
+Prefer goals with status active or paused, and avoid archived goals.
+
+Current active goal id: {{active_goal_id}}
+Goals: {{goals_json}}
+"""

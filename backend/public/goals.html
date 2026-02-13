@@ -42,6 +42,21 @@
       </section>
 
       <section class="goal-section">
+        <div class="section-head">
+          <h2>Goal Library</h2>
+          <p class="helper-copy">Switch focus by day. Tap any goal to view milestones.</p>
+        </div>
+        <div class="library-block">
+          <h3 class="library-heading">Active Goal</h3>
+          <div id="activeGoalsList" class="library-list"></div>
+        </div>
+        <div class="library-block">
+          <h3 class="library-heading">Other Goals</h3>
+          <div id="otherGoalsList" class="library-list"></div>
+        </div>
+      </section>
+
+      <section class="goal-section">
         <h2>Dashboard Preview</h2>
         <article class="preview-card">
           <div class="preview-top">
@@ -72,6 +87,20 @@
     </footer>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <section id="goalDetailPanel" class="goal-detail-panel" aria-hidden="true">
+      <div class="goal-detail-card">
+        <header class="goal-detail-head">
+          <h3 id="goalDetailTitle">Goal details</h3>
+          <button id="closeGoalDetailBtn" type="button" class="detail-close">Close</button>
+        </header>
+        <p id="goalDetailMeta" class="helper-copy"></p>
+        <div id="goalDetailSteps" class="detail-steps"></div>
+        <div class="goal-detail-footer">
+          <button id="closeGoalDetailBtnBottom" type="button" class="detail-close">Done</button>
+        </div>
+      </div>
+    </section>
 
     <script type="module" src="/goals.js"></script>
   </body>

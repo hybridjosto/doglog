@@ -612,24 +612,59 @@ app.get("/v1/goals/suggested", async (_req, res) => {
     const recentTrainableGoal =
       goals.rows.find((goal) => !["achieved", "archived"].includes(goal.status)) ||
       goals.rows[0];
+    const defaultSuggestedGoal = activeGoal || recentTrainableGoal;
+    const defaultSource = activeGoal ? "fallback_last_active" : "fallback_recent";
+
+    const cachedSuggestion = await getTodaysSuggestedGoal();
+    if (cachedSuggestion) {
+      const cachedGoal =
+        goals.rows.find((goal) => goal.id === cachedSuggestion.goal_id) || null;
+      if (cachedGoal && !["achieved", "archived"].includes(cachedGoal.status)) {
+        return res.json({
+          suggested_goal: cachedGoal,
+          source: cachedSuggestion.source,
+          notice: cachedSuggestion.notice,
+        });
+      }
+      return res.json({
+        suggested_goal: defaultSuggestedGoal,
+        source: defaultSource,
+        notice: cachedSuggestion.notice || null,
+      });
+    }
 
     if (!process.env.OPENAI_API_KEY) {
+      await saveTodaysSuggestedGoal({
+        goalId: defaultSuggestedGoal?.id || null,
+        source: defaultSource,
+        notice: "AI suggestion unavailable. Showing last active goal.",
+      });
       return res.json({
-        suggested_goal: activeGoal || recentTrainableGoal,
-        source: activeGoal ? "fallback_last_active" : "fallback_recent",
+        suggested_goal: defaultSuggestedGoal,
+        source: defaultSource,
         notice: "AI suggestion unavailable. Showing last active goal.",
       });
     }
 
     const suggested = await suggestGoalWithAI(goals.rows, activeGoal);
     if (!suggested) {
+      await saveTodaysSuggestedGoal({
+        goalId: defaultSuggestedGoal?.id || null,
+        source: defaultSource,
+        notice: "AI suggestion unavailable. Showing last active goal.",
+      });
       return res.json({
-        suggested_goal: activeGoal || recentTrainableGoal,
-        source: activeGoal ? "fallback_last_active" : "fallback_recent",
+        suggested_goal: defaultSuggestedGoal,
+        source: defaultSource,
         notice: "AI suggestion unavailable. Showing last active goal.",
       });
     }
 
+    await saveTodaysSuggestedGoal({
+      goalId: suggested.id,
+      source: "ai",
+      notice: null,
+    });
     return res.json({ suggested_goal: suggested, source: "ai" });
   } catch (error) {
     return res.status(500).json({ error: error.message });
@@ -922,6 +957,15 @@ async function ensureSchemaCompatibility() {
         created_at timestamptz not null default now()
       )
     `);
+    await client.query(`
+      create table if not exists goal_suggestions (
+        suggestion_date date primary key,
+        goal_id uuid references goals(id) on delete set null,
+        source text not null,
+        notice text,
+        created_at timestamptz not null default now()
+      )
+    `);
 
     await client.query(`
       create index if not exists idx_goals_status_updated
@@ -931,6 +975,10 @@ async function ensureSchemaCompatibility() {
       create index if not exists idx_goal_attempts_step_time
       on goal_attempts (goal_step_id, created_at desc)
     `);
+    await client.query(`
+      create index if not exists idx_goal_suggestions_goal
+      on goal_suggestions (goal_id)
+    `);
 
     await client.query("commit");
   } catch (error) {
@@ -939,6 +987,33 @@ async function ensureSchemaCompatibility() {
   } finally {
     client.release();
   }
+}
+
+async function getTodaysSuggestedGoal() {
+  const result = await pool.query(
+    `
+      select goal_id, source, notice
+      from goal_suggestions
+      where suggestion_date = current_date
+      limit 1
+    `,
+  );
+  return result.rows[0] || null;
+}
+
+async function saveTodaysSuggestedGoal({ goalId, source, notice }) {
+  await pool.query(
+    `
+      insert into goal_suggestions (suggestion_date, goal_id, source, notice)
+      values (current_date, $1, $2, $3)
+      on conflict (suggestion_date)
+      do update set
+        goal_id = excluded.goal_id,
+        source = excluded.source,
+        notice = excluded.notice
+    `,
+    [goalId, source, notice],
+  );
 }
 
 async function loadPromptConfig() {

@@ -1,4 +1,4 @@
-const cacheName = "doglog-static-v3";
+const cacheName = "doglog-static-v6";
 const staticAssets = [
   "/",
   "/index.html",

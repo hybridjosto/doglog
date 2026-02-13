@@ -76,6 +76,14 @@ create table goal_attempts (
   created_at timestamptz not null default now()
 );
 
+create table goal_suggestions (
+  suggestion_date date primary key,
+  goal_id uuid references goals(id) on delete set null,
+  source text not null,
+  notice text,
+  created_at timestamptz not null default now()
+);
+
 create table ai_runs (
   id uuid primary key default gen_random_uuid(),
   goal_id uuid references goals(id) on delete set null,
@@ -111,6 +119,7 @@ create index idx_goals_status on goals (status);
 create index idx_goals_status_updated on goals (status, updated_at desc);
 create index idx_goal_steps_goal_order on goal_steps (goal_id, step_order);
 create index idx_goal_attempts_step_time on goal_attempts (goal_step_id, created_at desc);
+create index idx_goal_suggestions_goal on goal_suggestions (goal_id);
 create index idx_ai_runs_goal_time on ai_runs (goal_id, started_at desc);
 create index idx_daily_metrics_date on daily_metrics (date desc);
 

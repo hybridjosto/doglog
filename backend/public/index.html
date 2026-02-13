@@ -23,7 +23,7 @@
 
     <header class="home-header">
       <div>
-        <h1>Hi, Cooper! <span class="bone">🦴</span></h1>
+        <h1>Hi, Iggy! <span class="bone">🦴</span></h1>
         <p>Ready for some training today?</p>
       </div>
       <div class="avatar-wrap">
@@ -39,7 +39,7 @@
     <section class="quick-log">
       <button id="positiveBtn" class="quick-btn quick-btn-good">
         <span class="quick-icon material-icons">add</span>
-        <span class="quick-title">Good Boy</span>
+        <span class="quick-title">Good Girl</span>
         <span class="quick-sub">Quick Log</span>
       </button>
       <button id="negativeBtn" class="quick-btn quick-btn-work">
@@ -74,6 +74,15 @@
           Retry AI Steps
         </button>
       </div>
+    </section>
+
+    <section id="suggestedGoalCard" class="card" hidden>
+      <div class="section-head">
+        <h3>Suggested Next Goal</h3>
+        <span id="suggestedGoalSource" class="task-pill">AI</span>
+      </div>
+      <h3 id="suggestedGoalTitle">-</h3>
+      <p id="suggestedGoalNotice" class="goal-hint"></p>
     </section>
 
     <section class="steps-section">
@@ -122,10 +131,10 @@
       <a href="/goals.html" class="fab">
         <span class="material-icons">add</span>
       </a>
-      <button class="nav-item" type="button" disabled>
+      <a class="nav-item" href="/goals-library.html">
         <span class="material-icons">menu_book</span>
         <span>Library</span>
-      </button>
+      </a>
       <button class="nav-item" type="button" disabled>
         <span class="material-icons">pets</span>
         <span>Profile</span>

@@ -38,8 +38,12 @@ Or use the helper script:
 - `GET /v1/events`
 - `GET /v1/goals`
 - `POST /v1/goals`
+- `PATCH /v1/goals/:id/activate`
+- `PATCH /v1/goals/:id/status`
+- `GET /v1/goals/suggested`
 - `POST /v1/goals/:id/generate-steps`
 - `PATCH /v1/goal-steps/:id`
+- `POST /v1/goal-steps/:id/attempt`
 
 ## Notes
 

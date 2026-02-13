@@ -17,14 +17,19 @@ const activeGoalMastery = document.getElementById("activeGoalMastery");
 const activeGoalProgressBar = document.getElementById("activeGoalProgressBar");
 const activeGoalHint = document.getElementById("activeGoalHint");
 const retryAiBtn = document.getElementById("retryAiBtn");
+const suggestedGoalCard = document.getElementById("suggestedGoalCard");
+const suggestedGoalSource = document.getElementById("suggestedGoalSource");
+const suggestedGoalTitle = document.getElementById("suggestedGoalTitle");
+const suggestedGoalNotice = document.getElementById("suggestedGoalNotice");
 const toast = document.getElementById("toast");
+
 let hasPendingGoalRefreshHint = false;
 let activeGoalId = null;
 
 positiveBtn?.addEventListener("click", () => queueEvent("positive"));
 negativeBtn?.addEventListener("click", () => queueEvent("negative"));
 syncBtn?.addEventListener("click", syncEvents);
-nextStepsList?.addEventListener("click", handleStepClick);
+nextStepsList?.addEventListener("click", handleStepAttempt);
 retryAiBtn?.addEventListener("click", retryAiGeneration);
 
 window.addEventListener("online", () => {
@@ -52,12 +57,12 @@ async function boot() {
 }
 
 async function refreshFromServer() {
-  await Promise.all([loadEvents(), loadGoals()]);
+  await Promise.all([loadEvents(), loadGoals(), loadSuggestedGoal()]);
 }
 
 function queueEvent(valence) {
   const queue = readQueue();
-  const event = {
+  queue.push({
     client_event_id: crypto.randomUUID(),
     occurred_at: new Date().toISOString(),
     valence,
@@ -65,9 +70,8 @@ function queueEvent(valence) {
     tags: [],
     notes: null,
     context: { source: "quick_log_home" },
-  };
+  });
 
-  queue.push(event);
   writeQueue(queue);
   refreshQueueUI(`${capitalize(valence)} logged`);
   showToast(`${capitalize(valence)} logged`);
@@ -123,9 +127,7 @@ async function loadEvents() {
     renderSummary(events);
     renderRecentEvents(events.slice(0, 5));
   } catch (_error) {
-    if (eventList) {
-      eventList.innerHTML = `<p class="empty-copy">Events unavailable right now.</p>`;
-    }
+    eventList.innerHTML = `<p class="empty-copy">Events unavailable right now.</p>`;
     showToast("Could not refresh events");
   }
 }
@@ -136,20 +138,12 @@ function renderSummary(events) {
   const wins = todayEvents.filter((event) => event.valence === "positive").length;
   const work = todayEvents.filter((event) => event.valence === "negative").length;
 
-  if (winsCount) {
-    winsCount.textContent = String(wins);
-  }
-  if (workCount) {
-    workCount.textContent = String(work);
-  }
-
+  winsCount.textContent = String(wins);
+  workCount.textContent = String(work);
   renderBars(todayEvents);
 }
 
 function renderBars(events) {
-  if (!summaryBars) {
-    return;
-  }
   const slots = [
     { label: "8 AM", hour: 8 },
     { label: "11 AM", hour: 11 },
@@ -168,9 +162,7 @@ function renderBars(events) {
       const pct = Math.max(8, Math.round((counts[idx] / max) * 100));
       return `
         <div class="bar-col">
-          <div class="bar-shell">
-            <div class="bar-fill" style="height:${pct}%"></div>
-          </div>
+          <div class="bar-shell"><div class="bar-fill" style="height:${pct}%"></div></div>
           <span class="bar-label">${slot.label}</span>
         </div>
       `;
@@ -179,9 +171,6 @@ function renderBars(events) {
 }
 
 function renderRecentEvents(events) {
-  if (!eventList) {
-    return;
-  }
   if (events.length === 0) {
     eventList.innerHTML = `<p class="empty-copy">No events yet. Tap a quick log button to start.</p>`;
     return;
@@ -214,7 +203,7 @@ async function loadGoals() {
     }
     const payload = await response.json();
     const goals = Array.isArray(payload.goals) ? payload.goals : [];
-    const activeGoal = goals.find((goal) => goal.status === "active") || goals[0];
+    const activeGoal = goals.find((goal) => goal.status === "active") || null;
     renderActiveGoal(activeGoal);
     renderNextSteps(activeGoal);
   } catch (_error) {
@@ -224,10 +213,37 @@ async function loadGoals() {
   }
 }
 
-function renderActiveGoal(goal) {
-  if (!activeGoalTitle || !activeGoalProgressText || !activeGoalMastery || !activeGoalHint) {
+async function loadSuggestedGoal() {
+  try {
+    const response = await fetch("/v1/goals/suggested");
+    if (!response.ok) {
+      throw new Error("failed suggested goal");
+    }
+    const payload = await response.json();
+    renderSuggestedGoal(payload);
+  } catch (_error) {
+    if (suggestedGoalCard) {
+      suggestedGoalCard.hidden = true;
+    }
+  }
+}
+
+function renderSuggestedGoal(payload) {
+  if (!suggestedGoalCard) {
     return;
   }
+  const goal = payload?.suggested_goal;
+  if (!goal) {
+    suggestedGoalCard.hidden = true;
+    return;
+  }
+  suggestedGoalCard.hidden = false;
+  suggestedGoalTitle.textContent = goal.title || "Suggested goal";
+  suggestedGoalSource.textContent = String(payload?.source || "fallback");
+  suggestedGoalNotice.textContent = payload?.notice || "";
+}
+
+function renderActiveGoal(goal) {
   if (!goal) {
     activeGoalId = null;
     activeGoalTitle.textContent = "No active goal yet";
@@ -235,14 +251,11 @@ function renderActiveGoal(goal) {
     activeGoalMastery.textContent = "Mastery Level 0";
     activeGoalProgressBar.style.width = "0%";
     activeGoalHint.textContent =
-      "Create your first goal in Goal Studio to get a daily roadmap.";
-    if (retryAiBtn) {
-      retryAiBtn.hidden = true;
-    }
+      "Create and activate your first goal in Goal Studio to get a daily roadmap.";
+    retryAiBtn.hidden = true;
     return;
   }
   activeGoalId = goal.id;
-
   const steps = Array.isArray(goal.steps) ? goal.steps : [];
   const done = steps.filter((step) => step.status === "done").length;
   const progress = steps.length > 0 ? Math.round((done / steps.length) * 100) : 0;
@@ -254,17 +267,12 @@ function renderActiveGoal(goal) {
   activeGoalProgressBar.style.width = `${progress}%`;
   activeGoalHint.textContent =
     steps.length > 0
-      ? "Consistency wins. Keep reinforcing eye contact and calm check-ins."
-      : "Generate steps to break this goal into small, daily wins.";
-  if (retryAiBtn) {
-    retryAiBtn.hidden = steps.length > 0;
-  }
+      ? "Track passes and needs work. A step completes at 3 consecutive passes."
+      : "No steps yet. Generate AI steps or add manual steps in Goal Studio.";
+  retryAiBtn.hidden = steps.length > 0;
 }
 
 function renderNextSteps(goal) {
-  if (!nextStepsList || !taskCount) {
-    return;
-  }
   if (!goal || !Array.isArray(goal.steps) || goal.steps.length === 0) {
     taskCount.textContent = "0 Tasks";
     nextStepsList.innerHTML = `<p class="empty-copy">${
@@ -274,72 +282,98 @@ function renderNextSteps(goal) {
     }</p>`;
     return;
   }
-  hasPendingGoalRefreshHint = false;
 
-  const pending = goal.steps.filter((step) => step.status !== "done").slice(0, 3);
-  const done = goal.steps.filter((step) => step.status === "done").slice(0, 1);
-  const display = [...pending, ...done].slice(0, 3);
-  taskCount.textContent = `${display.length} Tasks`;
-
-  nextStepsList.innerHTML = display
-    .map((step) => {
-      const isDone = step.status === "done";
-      return `
-        <article class="step-card ${isDone ? "is-done" : ""}">
-          <button class="step-check" data-step-id="${step.id}" ${
-            isDone ? "disabled" : ""
-          } aria-label="Mark step done">
-            <span class="material-icons">check</span>
-          </button>
-          <div class="step-main">
-            <p class="step-title">${escapeHtml(step.title || "Step")}</p>
-            <p class="step-meta">${
-              isDone ? "Completed" : "Training Task"
-            } • ${step.estimated_minutes || 10} mins</p>
-          </div>
-          <span class="material-icons">${isDone ? "verified" : "chevron_right"}</span>
-        </article>
-      `;
-    })
+  const pending = goal.steps.filter((step) => step.status !== "done").slice(0, 4);
+  taskCount.textContent = `${pending.length} Tasks`;
+  nextStepsList.innerHTML = pending
+    .map(
+      (step) => `
+      <article class="step-card">
+        <div class="step-main">
+          <p class="step-title">${escapeHtml(step.title || "Step")}</p>
+          <p class="step-meta">${escapeHtml(
+            step.success_criteria || "Complete task successfully",
+          )}</p>
+          <p class="step-meta">${step.estimated_minutes || 10} mins • ${
+            step.consecutive_passes || 0
+          }/3 streak</p>
+        </div>
+        <div class="attempt-actions">
+          <button class="attempt-btn pass-btn" data-step-id="${step.id}" data-outcome="pass">Pass</button>
+          <button class="attempt-btn work-btn" data-step-id="${step.id}" data-outcome="needs_work">Needs Work</button>
+        </div>
+      </article>
+    `,
+    )
     .join("");
+  hasPendingGoalRefreshHint = false;
 }
 
-async function handleStepClick(event) {
-  const button = event.target.closest("button[data-step-id]");
+async function handleStepAttempt(event) {
+  const button = event.target.closest("button[data-step-id][data-outcome]");
   if (!button) {
     return;
   }
   const stepId = button.getAttribute("data-step-id");
-  if (!stepId) {
+  const outcome = button.getAttribute("data-outcome");
+  if (!stepId || !outcome) {
     return;
   }
+
   button.disabled = true;
   try {
-    const response = await fetch(`/v1/goal-steps/${stepId}`, {
-      method: "PATCH",
+    const response = await fetch(`/v1/goal-steps/${stepId}/attempt`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "done" }),
+      body: JSON.stringify({ outcome }),
     });
     if (!response.ok) {
-      throw new Error("update failed");
+      throw new Error("attempt failed");
     }
-    showToast("Step completed");
+    const payload = await response.json();
+    if (payload?.step?.status === "done") {
+      showToast("Step mastered (3/3)");
+    } else {
+      showToast(outcome === "pass" ? "Pass recorded" : "Needs work recorded");
+    }
     await loadGoals();
   } catch (_error) {
+    showToast("Could not record attempt");
+  } finally {
     button.disabled = false;
-    showToast("Could not complete step");
+  }
+}
+
+async function retryAiGeneration() {
+  if (!activeGoalId || !retryAiBtn) {
+    return;
+  }
+  retryAiBtn.disabled = true;
+  const previousLabel = retryAiBtn.textContent;
+  retryAiBtn.textContent = "Retrying...";
+  try {
+    const response = await fetch(`/v1/goals/${activeGoalId}/generate-steps`, {
+      method: "POST",
+    });
+    if (!response.ok) {
+      throw new Error("retry failed");
+    }
+    const payload = await response.json();
+    showToast(payload?.notice || "AI steps generated");
+    await loadGoals();
+  } catch {
+    showToast("AI retry failed");
+  } finally {
+    retryAiBtn.disabled = false;
+    retryAiBtn.textContent = previousLabel;
   }
 }
 
 function refreshQueueUI(text) {
   const queue = readQueue();
-  if (syncStatus) {
-    syncStatus.textContent = text || `Queue: ${queue.length}`;
-  }
-  if (queueCountNav) {
-    queueCountNav.textContent = String(queue.length);
-    queueCountNav.style.display = queue.length > 0 ? "grid" : "none";
-  }
+  syncStatus.textContent = text || `Queue: ${queue.length}`;
+  queueCountNav.textContent = String(queue.length);
+  queueCountNav.style.display = queue.length > 0 ? "grid" : "none";
 }
 
 function readQueue() {
@@ -356,8 +390,7 @@ function writeQueue(events) {
 }
 
 function startOfDay(date) {
-  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  return d.getTime();
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }
 
 function capitalize(value) {
@@ -406,37 +439,10 @@ function consumeGoalStatusHint() {
     if (status?.notice) {
       showToast(String(status.notice));
     }
-    if (status?.mode === "error" || status?.mode === "fallback") {
-      if (status.mode === "error") {
-        hasPendingGoalRefreshHint = false;
-      }
+    if (status?.mode === "error") {
+      hasPendingGoalRefreshHint = false;
     }
   } catch {
     // ignore malformed status payloads
-  }
-}
-
-async function retryAiGeneration() {
-  if (!activeGoalId || !retryAiBtn) {
-    return;
-  }
-  retryAiBtn.disabled = true;
-  const previousLabel = retryAiBtn.textContent;
-  retryAiBtn.textContent = "Retrying...";
-  try {
-    const response = await fetch(`/v1/goals/${activeGoalId}/generate-steps`, {
-      method: "POST",
-    });
-    if (!response.ok) {
-      throw new Error("retry failed");
-    }
-    const payload = await response.json();
-    showToast(payload?.notice || "AI steps generated");
-    await loadGoals();
-  } catch {
-    showToast("AI retry failed");
-  } finally {
-    retryAiBtn.disabled = false;
-    retryAiBtn.textContent = previousLabel;
   }
 }

@@ -1,4 +1,6 @@
 const goalNameInput = document.getElementById("goalName");
+const goalDescriptionInput = document.getElementById("goalDescription");
+const setActiveGoalInput = document.getElementById("setActiveGoal");
 const addStepBtn = document.getElementById("addStepBtn");
 const stepList = document.getElementById("stepList");
 const saveGoalBtn = document.getElementById("saveGoalBtn");
@@ -12,21 +14,38 @@ const steps = [];
 
 goalNameInput.addEventListener("input", renderPreview);
 addStepBtn.addEventListener("click", () => {
-  addStep({ title: "", estimated_minutes: 10 });
+  addStep({
+    title: "",
+    success_criteria: "",
+    details: "",
+    estimated_minutes: 10,
+  });
 });
 saveGoalBtn.addEventListener("click", saveGoal);
 
 bootstrap();
 
 function bootstrap() {
-  addStep({ title: "Eye contact for 3 seconds", estimated_minutes: 2 });
-  addStep({ title: "", estimated_minutes: 5 });
+  addStep({
+    title: "Eye contact for 3 seconds",
+    success_criteria: "3 successful eye contacts in one 5-minute block",
+    details: "Use high-value treats and mark eye contact quickly.",
+    estimated_minutes: 5,
+  });
+  addStep({
+    title: "",
+    success_criteria: "",
+    details: "",
+    estimated_minutes: 10,
+  });
 }
 
 function addStep(step) {
   steps.push({
     id: crypto.randomUUID(),
     title: step.title || "",
+    success_criteria: step.success_criteria || "",
+    details: step.details || "",
     estimated_minutes: step.estimated_minutes || 10,
   });
   renderSteps();
@@ -44,11 +63,25 @@ function renderSteps() {
               data-step-id="${step.id}"
               data-field="title"
               type="text"
-              placeholder="Add next milestone..."
+              placeholder="Action (example: calm heel for 10 steps)"
               value="${escapeHtml(step.title)}"
             />
+            <input
+              data-step-id="${step.id}"
+              data-field="success_criteria"
+              type="text"
+              placeholder="Success criteria (what counts as pass)"
+              value="${escapeHtml(step.success_criteria)}"
+            />
+            <input
+              data-step-id="${step.id}"
+              data-field="details"
+              type="text"
+              placeholder="Optional details (cue, reward, environment)"
+              value="${escapeHtml(step.details)}"
+            />
             <div class="step-meta">
-              <span class="chip">Easy</span>
+              <span class="chip">Duration</span>
               <input
                 class="step-time"
                 data-step-id="${step.id}"
@@ -82,7 +115,7 @@ function renderSteps() {
       if (field === "estimated_minutes") {
         step.estimated_minutes = clampMinutes(target.value);
       } else {
-        step.title = target.value;
+        step[field] = target.value;
       }
       renderPreview();
     });
@@ -103,7 +136,9 @@ function renderSteps() {
 
 function renderPreview() {
   const title = goalNameInput.value.trim();
-  const filledSteps = steps.filter((step) => step.title.trim().length > 0);
+  const filledSteps = steps.filter(
+    (step) => step.title.trim().length > 0 && step.success_criteria.trim().length > 0,
+  );
   previewGoalTitle.textContent = title || "New Skill Goal";
   previewMilestone.textContent = `Milestone 1 of ${Math.max(1, filledSteps.length)}`;
   previewProgress.textContent = "0%";
@@ -119,9 +154,14 @@ async function saveGoal() {
   }
 
   const validSteps = steps
-    .filter((step) => step.title.trim().length > 0)
+    .filter(
+      (step) =>
+        step.title.trim().length > 0 && step.success_criteria.trim().length > 0,
+    )
     .map((step) => ({
       title: step.title.trim(),
+      success_criteria: step.success_criteria.trim(),
+      details: step.details.trim() || null,
       estimated_minutes: clampMinutes(step.estimated_minutes),
     }));
 
@@ -133,7 +173,8 @@ async function saveGoal() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title,
-        description: validSteps.length > 0 ? `${validSteps.length} planned steps` : null,
+        description: goalDescriptionInput.value.trim() || null,
+        status: "draft",
         steps: validSteps,
       }),
     });
@@ -145,6 +186,11 @@ async function saveGoal() {
     const goalId = createPayload?.goal?.id;
     if (!goalId) {
       throw new Error("goal saved but id missing");
+    }
+
+    if (setActiveGoalInput.checked) {
+      saveGoalBtn.textContent = "Activating...";
+      await fetch(`/v1/goals/${goalId}/activate`, { method: "PATCH" });
     }
 
     showToast("Goal saved");
@@ -181,9 +227,7 @@ async function saveGoal() {
     );
 
     showToast(
-      generationMode === "cloud"
-        ? "Goal + AI steps ready"
-        : "Fallback steps ready",
+      generationMode === "cloud" ? "Goal + AI steps ready" : "Fallback steps ready",
     );
     window.setTimeout(() => {
       window.location.href = "/?goal_sync=1";

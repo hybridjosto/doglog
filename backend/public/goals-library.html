@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#36454F" />
+    <title>Goal Library</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/goals-library.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="header">
+        <a href="/" class="link">Home</a>
+        <h1>Goal Library</h1>
+        <a href="/goals.html" class="link">New</a>
+      </header>
+
+      <section class="group">
+        <h2>Active</h2>
+        <div id="activeList" class="list"></div>
+      </section>
+
+      <section class="group">
+        <h2>Paused</h2>
+        <div id="pausedList" class="list"></div>
+      </section>
+
+      <section class="group">
+        <h2>Draft</h2>
+        <div id="draftList" class="list"></div>
+      </section>
+
+      <section class="group">
+        <h2>Achieved</h2>
+        <div id="achievedList" class="list"></div>
+      </section>
+
+      <section class="group">
+        <h2>Archived</h2>
+        <div id="archivedList" class="list"></div>
+      </section>
+    </main>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="/goals-library.js"></script>
+  </body>
+</html>

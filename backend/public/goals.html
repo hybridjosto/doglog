@@ -22,7 +22,7 @@
     <header class="top-nav">
       <a href="/" class="ghost-link">Back</a>
       <h1>New Training Goal</h1>
-      <span class="nav-spacer"></span>
+      <a href="/goals-library.html" class="ghost-link">Library</a>
     </header>
 
     <main class="goal-shell">
@@ -31,6 +31,13 @@
         <div class="goal-input-wrap">
           <input id="goalName" type="text" placeholder="e.g., Stay for 30 seconds" />
           <span class="star">★</span>
+        </div>
+        <div class="goal-input-wrap">
+          <input
+            id="goalDescription"
+            type="text"
+            placeholder="Goal detail (example: calm walking with loose leash for 20 min)"
+          />
         </div>
       </section>
 
@@ -66,6 +73,10 @@
     </main>
 
     <footer class="bottom-actions">
+      <label class="check-row" for="setActiveGoal">
+        <input id="setActiveGoal" type="checkbox" checked />
+        <span>Set as active goal now</span>
+      </label>
       <label class="check-row" for="reminderDaily">
         <input id="reminderDaily" type="checkbox" />
         <span>Remind me to train daily</span>

@@ -47,10 +47,14 @@ create table goal_steps (
   parent_step_id uuid references goal_steps(id) on delete set null,
   title text not null,
   details text,
+  success_criteria text,
   step_order integer not null check (step_order >= 0),
   status step_status not null default 'pending',
   scheduled_for date,
   estimated_minutes integer check (estimated_minutes is null or estimated_minutes > 0),
+  pass_count integer not null default 0 check (pass_count >= 0),
+  needs_work_count integer not null default 0 check (needs_work_count >= 0),
+  consecutive_passes integer not null default 0 check (consecutive_passes >= 0),
   ai_generated boolean not null default false,
   completion_notes text,
   completed_at timestamptz,
@@ -62,6 +66,22 @@ create table goal_step_events (
   goal_step_id uuid not null references goal_steps(id) on delete cascade,
   event_id uuid not null references behavior_events(id) on delete cascade,
   primary key (goal_step_id, event_id)
+);
+
+create table goal_attempts (
+  id uuid primary key default gen_random_uuid(),
+  goal_step_id uuid not null references goal_steps(id) on delete cascade,
+  outcome text not null check (outcome in ('pass', 'needs_work')),
+  note text,
+  created_at timestamptz not null default now()
+);
+
+create table goal_suggestions (
+  suggestion_date date primary key,
+  goal_id uuid references goals(id) on delete set null,
+  source text not null,
+  notice text,
+  created_at timestamptz not null default now()
 );
 
 create table ai_runs (
@@ -96,7 +116,10 @@ create index idx_behavior_events_time on behavior_events (occurred_at desc);
 create index idx_behavior_events_valence_time on behavior_events (valence, occurred_at desc);
 create index idx_event_tags_tag on event_tags (tag);
 create index idx_goals_status on goals (status);
+create index idx_goals_status_updated on goals (status, updated_at desc);
 create index idx_goal_steps_goal_order on goal_steps (goal_id, step_order);
+create index idx_goal_attempts_step_time on goal_attempts (goal_step_id, created_at desc);
+create index idx_goal_suggestions_goal on goal_suggestions (goal_id);
 create index idx_ai_runs_goal_time on ai_runs (goal_id, started_at desc);
 create index idx_daily_metrics_date on daily_metrics (date desc);
 

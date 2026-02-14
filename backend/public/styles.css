@@ -387,6 +387,39 @@ body {
   flex: 1;
 }
 
+.attempt-actions {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.attempt-btn {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--primary-ink);
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 0.22rem 0.48rem;
+  cursor: pointer;
+}
+
+.attempt-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pass-btn {
+  background: rgba(250, 237, 39, 0.35);
+}
+
+.work-btn {
+  background: var(--soft);
+}
+
+.undo-btn {
+  background: #f8fafc;
+}
+
 .step-title {
   margin: 0;
   font-size: 0.86rem;

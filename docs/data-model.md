@@ -60,15 +60,29 @@ AI-generated or manual micro-steps for each goal.
 - `parent_step_id uuid fk -> goal_steps.id`
 - `title text not null`
 - `details text`
+- `success_criteria text`
 - `step_order integer not null`
 - `status step_status not null` (`pending`, `in_progress`, `done`, `skipped`)
 - `scheduled_for date`
 - `estimated_minutes integer`
+- `pass_count integer not null default 0`
+- `needs_work_count integer not null default 0`
+- `consecutive_passes integer not null default 0`
 - `ai_generated boolean not null default false`
 - `completion_notes text`
 - `completed_at timestamptz`
 - `created_at timestamptz not null`
 - `updated_at timestamptz not null`
+
+### `goal_attempts`
+
+Tracks each subtask attempt outcome for auditability.
+
+- `id uuid pk`
+- `goal_step_id uuid fk -> goal_steps.id`
+- `outcome text` (`pass`, `needs_work`)
+- `note text`
+- `created_at timestamptz not null`
 
 ### `goal_step_events`
 
@@ -131,8 +145,12 @@ Required payload for sync:
 - `POST /v1/events/batch` -> upsert events + tags
 - `GET /v1/events` -> filter by date/tag/valence
 - `POST /v1/goals`
+- `PATCH /v1/goals/:id/activate`
+- `PATCH /v1/goals/:id/status`
+- `GET /v1/goals/suggested`
 - `POST /v1/goals/:id/generate-steps`
 - `PATCH /v1/goal-steps/:id`
+- `POST /v1/goal-steps/:id/attempt`
 - `GET /v1/dashboard/daily?from=&to=`
 
 ## Cloud-to-local LLM migration

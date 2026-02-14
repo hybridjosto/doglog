@@ -22,7 +22,7 @@
     <header class="top-nav">
       <a href="/" class="ghost-link">Back</a>
       <h1>New Training Goal</h1>
-      <span class="nav-spacer"></span>
+      <a href="/goals-library.html" class="ghost-link">Library</a>
     </header>
 
     <main class="goal-shell">
@@ -35,16 +35,25 @@
       </section>
 
       <section class="goal-section">
+        <h2>SMART AI Breakdown</h2>
+        <p class="helper-copy">
+          Add a goal title only. AI will analyze it with SMART methodology and create measurable milestones.
+        </p>
+      </section>
+
+      <section class="goal-section">
         <div class="section-head">
-          <div>
-            <h2>Break it down</h2>
-            <p>Small steps lead to big wins</p>
-          </div>
-          <button id="addStepBtn" class="circle-btn" type="button" aria-label="Add step">
-            +
-          </button>
+          <h2>Goal Library</h2>
+          <p class="helper-copy">Switch focus by day. Tap any goal to view milestones.</p>
         </div>
-        <div id="stepList" class="step-list"></div>
+        <div class="library-block">
+          <h3 class="library-heading">Active Goal</h3>
+          <div id="activeGoalsList" class="library-list"></div>
+        </div>
+        <div class="library-block">
+          <h3 class="library-heading">Other Goals</h3>
+          <div id="otherGoalsList" class="library-list"></div>
+        </div>
       </section>
 
       <section class="goal-section">
@@ -53,7 +62,7 @@
           <div class="preview-top">
             <div>
               <h3 id="previewGoalTitle">New Skill Goal</h3>
-              <p id="previewMilestone">Milestone 1 of 1</p>
+              <p id="previewMilestone">AI will generate milestones after save</p>
             </div>
             <p id="previewProgress" class="progress">0%</p>
           </div>
@@ -66,6 +75,10 @@
     </main>
 
     <footer class="bottom-actions">
+      <label class="check-row" for="setActiveGoal">
+        <input id="setActiveGoal" type="checkbox" checked />
+        <span>Set as active goal now</span>
+      </label>
       <label class="check-row" for="reminderDaily">
         <input id="reminderDaily" type="checkbox" />
         <span>Remind me to train daily</span>
@@ -74,6 +87,20 @@
     </footer>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <section id="goalDetailPanel" class="goal-detail-panel" aria-hidden="true">
+      <div class="goal-detail-card">
+        <header class="goal-detail-head">
+          <h3 id="goalDetailTitle">Goal details</h3>
+          <button id="closeGoalDetailBtn" type="button" class="detail-close">Close</button>
+        </header>
+        <p id="goalDetailMeta" class="helper-copy"></p>
+        <div id="goalDetailSteps" class="detail-steps"></div>
+        <div class="goal-detail-footer">
+          <button id="closeGoalDetailBtnBottom" type="button" class="detail-close">Done</button>
+        </div>
+      </div>
+    </section>
 
     <script type="module" src="/goals.js"></script>
   </body>

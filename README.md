@@ -38,12 +38,17 @@ Or use the helper script:
 - `GET /v1/events`
 - `GET /v1/goals`
 - `POST /v1/goals`
+- `PATCH /v1/goals/:id/activate`
+- `PATCH /v1/goals/:id/status`
+- `GET /v1/goals/suggested`
 - `POST /v1/goals/:id/generate-steps`
 - `PATCH /v1/goal-steps/:id`
+- `POST /v1/goal-steps/:id/attempt`
 
 ## Notes
 
 - If `OPENAI_API_KEY` is not set, step generation uses a deterministic local fallback.
+- AI prompts are configurable in `backend/config/prompts.toml` (override path with `PROMPTS_FILE`).
 - Database schema is initialized from `db/schema.sql` when Postgres data is created for the first time.
 - To reset local data during prototype testing:
 

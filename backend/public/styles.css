@@ -153,6 +153,49 @@ body {
   letter-spacing: 0.11em;
 }
 
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.history-header h1 {
+  margin: 0;
+  font-size: clamp(1.45rem, 4.8vw, 1.85rem);
+  letter-spacing: -0.02em;
+}
+
+.history-header p {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.history-controls {
+  margin-top: 0.95rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.history-filter {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.72rem;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+}
+
+.history-filter.is-active {
+  border-color: rgba(54, 69, 79, 0.26);
+  background: rgba(250, 237, 39, 0.35);
+  color: var(--primary-ink);
+}
+
 .card {
   margin-top: 1rem;
   padding: 1rem;

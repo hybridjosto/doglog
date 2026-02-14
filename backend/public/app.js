@@ -8,7 +8,6 @@ const queueCountNav = document.getElementById("queueCountNav");
 const winsCount = document.getElementById("winsCount");
 const workCount = document.getElementById("workCount");
 const summaryBars = document.getElementById("summaryBars");
-const eventList = document.getElementById("eventList");
 const nextStepsList = document.getElementById("nextStepsList");
 const taskCount = document.getElementById("taskCount");
 const activeGoalTitle = document.getElementById("activeGoalTitle");
@@ -121,11 +120,7 @@ async function loadEvents() {
     const payload = await response.json();
     const events = Array.isArray(payload.events) ? payload.events : [];
     renderSummary(events);
-    renderRecentEvents(events.slice(0, 5));
   } catch (_error) {
-    if (eventList) {
-      eventList.innerHTML = `<p class="empty-copy">Events unavailable right now.</p>`;
-    }
     showToast("Could not refresh events");
   }
 }
@@ -173,34 +168,6 @@ function renderBars(events) {
           </div>
           <span class="bar-label">${slot.label}</span>
         </div>
-      `;
-    })
-    .join("");
-}
-
-function renderRecentEvents(events) {
-  if (!eventList) {
-    return;
-  }
-  if (events.length === 0) {
-    eventList.innerHTML = `<p class="empty-copy">No events yet. Tap a quick log button to start.</p>`;
-    return;
-  }
-  eventList.innerHTML = events
-    .map((event) => {
-      const type = event.valence === "positive" ? "Good Boy" : "Needs Work";
-      const time = new Date(event.occurred_at).toLocaleTimeString([], {
-        hour: "numeric",
-        minute: "2-digit",
-      });
-      return `
-        <article class="event-card">
-          <div class="event-top">
-            <p class="event-type">${type}</p>
-            <p class="event-time">${time}</p>
-          </div>
-          <p class="event-note">${event.notes || "Quick log entry"}</p>
-        </article>
       `;
     })
     .join("");

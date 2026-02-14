@@ -373,6 +373,10 @@ body {
   background: var(--soft);
 }
 
+.undo-btn {
+  background: #f8fafc;
+}
+
 .step-title {
   margin: 0;
   font-size: 0.86rem;

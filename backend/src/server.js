@@ -594,6 +594,109 @@ app.post("/v1/goal-steps/:id/attempt", async (req, res) => {
   }
 });
 
+app.post("/v1/goal-steps/:id/attempt/undo", async (req, res) => {
+  const stepId = req.params.id;
+  const client = await pool.connect();
+
+  try {
+    await client.query("begin");
+    const stepResult = await client.query(
+      "select * from goal_steps where id = $1 for update",
+      [stepId],
+    );
+    if (stepResult.rowCount === 0) {
+      await client.query("rollback");
+      return res.status(404).json({ error: "goal step not found" });
+    }
+
+    const removedAttempt = await client.query(
+      `
+      with last_attempt as (
+        select id, outcome
+        from goal_attempts
+        where goal_step_id = $1
+        order by created_at desc, id desc
+        limit 1
+      )
+      delete from goal_attempts
+      where id in (select id from last_attempt)
+      returning outcome
+    `,
+      [stepId],
+    );
+
+    if (removedAttempt.rowCount === 0) {
+      await client.query("rollback");
+      return res.status(409).json({ error: "no attempts to undo" });
+    }
+
+    const attemptsResult = await client.query(
+      `
+      select outcome
+      from goal_attempts
+      where goal_step_id = $1
+      order by created_at asc, id asc
+    `,
+      [stepId],
+    );
+
+    const attempts = attemptsResult.rows;
+    let passCount = 0;
+    let needsWorkCount = 0;
+    for (const attempt of attempts) {
+      if (attempt.outcome === "pass") {
+        passCount += 1;
+      } else {
+        needsWorkCount += 1;
+      }
+    }
+
+    let consecutivePasses = 0;
+    for (let index = attempts.length - 1; index >= 0; index -= 1) {
+      if (attempts[index].outcome === "pass") {
+        consecutivePasses += 1;
+      } else {
+        break;
+      }
+    }
+
+    const nextStatus =
+      attempts.length === 0
+        ? "pending"
+        : consecutivePasses >= 3
+          ? "done"
+          : "in_progress";
+
+    const updated = await client.query(
+      `
+      update goal_steps
+      set pass_count = $2,
+          needs_work_count = $3,
+          consecutive_passes = $4,
+          status = $5::step_status,
+          completed_at = case
+            when $5::step_status = 'done' then coalesce(completed_at, now())
+            else null
+          end
+      where id = $1
+      returning *
+    `,
+      [stepId, passCount, needsWorkCount, consecutivePasses, nextStatus],
+    );
+
+    await client.query("commit");
+    return res.json({
+      step: updated.rows[0],
+      undone_outcome: removedAttempt.rows[0].outcome,
+    });
+  } catch (error) {
+    await client.query("rollback");
+    return res.status(400).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
 app.get("/v1/goals/suggested", async (_req, res) => {
   try {
     const goals = await pool.query(

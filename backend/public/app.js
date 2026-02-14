@@ -29,7 +29,7 @@ let activeGoalId = null;
 positiveBtn?.addEventListener("click", () => queueEvent("positive"));
 negativeBtn?.addEventListener("click", () => queueEvent("negative"));
 syncBtn?.addEventListener("click", syncEvents);
-nextStepsList?.addEventListener("click", handleStepAttempt);
+nextStepsList?.addEventListener("click", handleStepAction);
 retryAiBtn?.addEventListener("click", retryAiGeneration);
 
 window.addEventListener("online", () => {
@@ -283,12 +283,16 @@ function renderNextSteps(goal) {
     return;
   }
 
-  const pending = goal.steps.filter((step) => step.status !== "done").slice(0, 4);
-  taskCount.textContent = `${pending.length} Tasks`;
-  nextStepsList.innerHTML = pending
+  const steps = [...goal.steps].sort((a, b) => {
+    const left = Number.isFinite(a?.step_order) ? a.step_order : 0;
+    const right = Number.isFinite(b?.step_order) ? b.step_order : 0;
+    return left - right;
+  });
+  taskCount.textContent = `${steps.length} Tasks`;
+  nextStepsList.innerHTML = steps
     .map(
       (step) => `
-      <article class="step-card">
+      <article class="step-card ${step.status === "done" ? "is-done" : ""}">
         <div class="step-main">
           <p class="step-title">${escapeHtml(step.title || "Step")}</p>
           <p class="step-meta">${escapeHtml(
@@ -297,10 +301,22 @@ function renderNextSteps(goal) {
           <p class="step-meta">${step.estimated_minutes || 10} mins • ${
             step.consecutive_passes || 0
           }/3 streak</p>
+          <p class="step-meta">${
+            step.pass_count || 0
+          } pass • ${step.needs_work_count || 0} needs work</p>
         </div>
         <div class="attempt-actions">
-          <button class="attempt-btn pass-btn" data-step-id="${step.id}" data-outcome="pass">Pass</button>
-          <button class="attempt-btn work-btn" data-step-id="${step.id}" data-outcome="needs_work">Needs Work</button>
+          <button class="attempt-btn pass-btn" data-step-id="${step.id}" data-action="attempt" data-outcome="pass"${
+            step.status === "done" ? " disabled" : ""
+          }>Pass</button>
+          <button class="attempt-btn work-btn" data-step-id="${step.id}" data-action="attempt" data-outcome="needs_work"${
+            step.status === "done" ? " disabled" : ""
+          }>Needs Work</button>
+          <button class="attempt-btn undo-btn" data-step-id="${step.id}" data-action="undo"${
+            (step.pass_count || 0) + (step.needs_work_count || 0) === 0
+              ? " disabled"
+              : ""
+          }>Undo</button>
         </div>
       </article>
     `,
@@ -309,38 +325,64 @@ function renderNextSteps(goal) {
   hasPendingGoalRefreshHint = false;
 }
 
-async function handleStepAttempt(event) {
-  const button = event.target.closest("button[data-step-id][data-outcome]");
+function setStepButtonsDisabled(stepId, disabled) {
+  const buttons = nextStepsList?.querySelectorAll(`button[data-step-id="${stepId}"]`) || [];
+  for (const button of buttons) {
+    button.disabled = disabled;
+  }
+}
+
+async function handleStepAction(event) {
+  const button = event.target.closest("button[data-step-id][data-action]");
   if (!button) {
     return;
   }
   const stepId = button.getAttribute("data-step-id");
-  const outcome = button.getAttribute("data-outcome");
-  if (!stepId || !outcome) {
+  const action = button.getAttribute("data-action");
+  if (!stepId || !action) {
     return;
   }
 
-  button.disabled = true;
+  setStepButtonsDisabled(stepId, true);
   try {
-    const response = await fetch(`/v1/goal-steps/${stepId}/attempt`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ outcome }),
-    });
-    if (!response.ok) {
-      throw new Error("attempt failed");
+    let response;
+    if (action === "attempt") {
+      const outcome = button.getAttribute("data-outcome");
+      if (!outcome) {
+        return;
+      }
+      response = await fetch(`/v1/goal-steps/${stepId}/attempt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outcome }),
+      });
+    } else if (action === "undo") {
+      response = await fetch(`/v1/goal-steps/${stepId}/attempt/undo`, {
+        method: "POST",
+      });
+    } else {
+      return;
     }
+
+    if (!response.ok) {
+      throw new Error("step action failed");
+    }
+
     const payload = await response.json();
-    if (payload?.step?.status === "done") {
+    if (action === "undo") {
+      const undone = payload?.undone_outcome === "pass" ? "pass" : "needs work";
+      showToast(`Undid ${undone}`);
+    } else if (payload?.step?.status === "done") {
       showToast("Step mastered (3/3)");
     } else {
+      const outcome = button.getAttribute("data-outcome");
       showToast(outcome === "pass" ? "Pass recorded" : "Needs work recorded");
     }
     await loadGoals();
   } catch (_error) {
-    showToast("Could not record attempt");
+    showToast(action === "undo" ? "Could not undo attempt" : "Could not record attempt");
   } finally {
-    button.disabled = false;
+    setStepButtonsDisabled(stepId, false);
   }
 }
 

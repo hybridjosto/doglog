@@ -22,15 +22,42 @@ const suggestedGoalSource = document.getElementById("suggestedGoalSource");
 const suggestedGoalTitle = document.getElementById("suggestedGoalTitle");
 const suggestedGoalNotice = document.getElementById("suggestedGoalNotice");
 const toast = document.getElementById("toast");
+const negativeBehaviourGrid = document.getElementById("negativeBehaviourGrid");
+const negativeBehaviourOverlay = document.getElementById("negativeBehaviourOverlay");
+const negativeBehaviourClose = document.getElementById("negativeBehaviourClose");
+const commonNegativeBehaviours = [
+  "Pulling on leash",
+  "Jumping on guests",
+  "Barking at visitors",
+  "Counter surfing",
+  "Resource guarding",
+  "Ignoring recall",
+];
 
 let hasPendingGoalRefreshHint = false;
 let activeGoalId = null;
 
 positiveBtn?.addEventListener("click", () => queueEvent("positive"));
-negativeBtn?.addEventListener("click", () => queueEvent("negative"));
+negativeBtn?.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  openNegativeBehaviourPopover();
+});
 syncBtn?.addEventListener("click", syncEvents);
 nextStepsList?.addEventListener("click", handleStepAction);
 retryAiBtn?.addEventListener("click", retryAiGeneration);
+negativeBehaviourGrid?.addEventListener("click", handleNegativeBehaviourTap);
+negativeBehaviourOverlay?.addEventListener("click", (event) => {
+  if (event.target === negativeBehaviourOverlay) {
+    closeNegativeBehaviourPopover();
+  }
+});
+negativeBehaviourClose?.addEventListener("click", closeNegativeBehaviourPopover);
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeNegativeBehaviourPopover();
+  }
+});
 
 window.addEventListener("online", () => {
   syncEvents();
@@ -49,6 +76,7 @@ boot();
 
 async function boot() {
   refreshQueueUI();
+  renderCommonNegativeBehaviours();
   consumeGoalStatusHint();
   await refreshFromServer();
   if (navigator.onLine) {
@@ -60,24 +88,123 @@ async function refreshFromServer() {
   await Promise.all([loadEvents(), loadGoals(), loadSuggestedGoal()]);
 }
 
-function queueEvent(valence) {
+function queueEvent(valence, options = {}) {
+  const behaviourLabel =
+    typeof options.behaviour === "string" && options.behaviour.trim()
+      ? options.behaviour.trim()
+      : null;
+  const customNotes =
+    typeof options.notes === "string" && options.notes.trim() ? options.notes.trim() : null;
+  const noteParts = [];
+  if (behaviourLabel) {
+    noteParts.push(behaviourLabel);
+  }
+  if (customNotes) {
+    noteParts.push(customNotes);
+  }
+  const notes = noteParts.length > 0 ? noteParts.join(" • ") : null;
+  const intensity = Number.isInteger(options.intensity) ? options.intensity : 3;
+
+  const tagSet = new Set();
+  if (Array.isArray(options.tags)) {
+    for (const tag of options.tags) {
+      const normalized = String(tag || "").trim().toLowerCase();
+      if (normalized) {
+        tagSet.add(normalized);
+      }
+    }
+  }
+  if (behaviourLabel) {
+    tagSet.add(behaviourLabel.toLowerCase());
+  }
+  const tags = Array.from(tagSet);
+
+  const context =
+    typeof options.context === "object" && options.context !== null
+      ? { ...options.context }
+      : {};
+  if (!context.source) {
+    context.source = "quick_log_home";
+  }
+  if (behaviourLabel) {
+    context.behaviour = behaviourLabel;
+  }
+
+  const toastMessage =
+    options.toastMessage ||
+    (behaviourLabel ? `${behaviourLabel} logged` : `${capitalize(valence)} logged`);
+
   const queue = readQueue();
   queue.push({
     client_event_id: crypto.randomUUID(),
     occurred_at: new Date().toISOString(),
     valence,
-    intensity: 3,
-    tags: [],
-    notes: null,
-    context: { source: "quick_log_home" },
+    intensity,
+    tags,
+    notes,
+    context,
   });
 
   writeQueue(queue);
-  refreshQueueUI(`${capitalize(valence)} logged`);
-  showToast(`${capitalize(valence)} logged`);
+  refreshQueueUI(toastMessage);
+  showToast(toastMessage);
   if (navigator.onLine) {
     syncEvents();
   }
+}
+
+function renderCommonNegativeBehaviours() {
+  if (!negativeBehaviourGrid) {
+    return;
+  }
+  negativeBehaviourGrid.innerHTML = commonNegativeBehaviours
+    .map(
+      (behaviour) => `
+        <button
+          type="button"
+          class="behaviour-pill"
+          data-behaviour="${escapeAttr(behaviour)}"
+        >
+          ${escapeHtml(behaviour)}
+        </button>
+      `,
+    )
+    .join("");
+}
+
+function handleNegativeBehaviourTap(event) {
+  const button = event.target.closest("button[data-behaviour]");
+  if (!button) {
+    return;
+  }
+  const behaviour = button.dataset.behaviour;
+  if (!behaviour) {
+    return;
+  }
+  queueEvent("negative", { behaviour });
+  closeNegativeBehaviourPopover();
+}
+
+function openNegativeBehaviourPopover() {
+  if (!negativeBehaviourOverlay) {
+    return;
+  }
+  negativeBehaviourOverlay.hidden = false;
+  document.body.style.overflow = "hidden";
+  window.requestAnimationFrame(() => {
+    const firstButton = negativeBehaviourGrid?.querySelector("button[data-behaviour]");
+    if (firstButton) {
+      firstButton.focus();
+    }
+  });
+}
+
+function closeNegativeBehaviourPopover() {
+  if (!negativeBehaviourOverlay || negativeBehaviourOverlay.hidden) {
+    return;
+  }
+  negativeBehaviourOverlay.hidden = true;
+  document.body.style.overflow = "";
 }
 
 async function syncEvents() {
@@ -445,6 +572,10 @@ function escapeHtml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value).replaceAll("'", "&#39;");
 }
 
 let toastTimer = null;

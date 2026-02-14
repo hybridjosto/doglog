@@ -42,7 +42,7 @@
         <span class="quick-title">Good Girl</span>
         <span class="quick-sub">Quick Log</span>
       </button>
-      <button id="negativeBtn" class="quick-btn quick-btn-work">
+      <button id="negativeBtn" class="quick-btn quick-btn-work" type="button">
         <span class="quick-icon material-icons">remove</span>
         <span class="quick-title">Needs Work</span>
         <span class="quick-sub">Quick Log</span>
@@ -141,6 +141,23 @@
       </button>
       <span id="queueCountNav" class="queue-badge">0</span>
     </nav>
+
+    <div id="negativeBehaviourOverlay" class="behaviour-popover-overlay" hidden>
+      <div class="behaviour-popover" role="dialog" aria-label="Log a negative behaviour">
+        <div class="behaviour-popover-head">
+          <div>
+            <h3>Common challenges</h3>
+            <p class="helper-copy">
+              Tap a behaviour to log it with context already filled in.
+            </p>
+          </div>
+          <button id="negativeBehaviourClose" class="behaviour-popover-close" type="button" aria-label="Close behaviour picker">
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+        <div id="negativeBehaviourGrid" class="behaviour-grid"></div>
+      </div>
+    </div>
 
     <script type="module" src="/app.js"></script>
   </body>

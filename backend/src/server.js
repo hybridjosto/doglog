@@ -533,8 +533,17 @@ app.post("/v1/goal-steps/:id/attempt", async (req, res) => {
   const stepId = req.params.id;
   const outcome = req.body?.outcome ? String(req.body.outcome) : null;
   const note = req.body?.note ? String(req.body.note).trim().slice(0, 500) : null;
-  if (!["pass", "needs_work"].includes(outcome)) {
-    return res.status(400).json({ error: "outcome must be pass or needs_work" });
+  const rawDuration = req.body?.duration_seconds;
+  const durationSeconds = rawDuration === undefined ? 0 : Number(rawDuration);
+  if (!["pass", "needs_work", "neutral"].includes(outcome)) {
+    return res
+      .status(400)
+      .json({ error: "outcome must be pass, needs_work, or neutral" });
+  }
+  if (!Number.isInteger(durationSeconds) || durationSeconds < 0) {
+    return res
+      .status(400)
+      .json({ error: "duration_seconds must be a non-negative integer" });
   }
 
   const client = await pool.connect();
@@ -550,18 +559,18 @@ app.post("/v1/goal-steps/:id/attempt", async (req, res) => {
     }
 
     const step = stepResult.rows[0];
-    if (step.status === "done") {
-      await client.query("commit");
-      return res.json({ step, unchanged: true });
-    }
 
     await client.query(
-      "insert into goal_attempts (goal_step_id, outcome, note) values ($1, $2, $3)",
-      [stepId, outcome, note],
+      `
+      insert into goal_attempts (goal_step_id, outcome, duration_seconds, note)
+      values ($1, $2, $3, $4)
+    `,
+      [stepId, outcome, durationSeconds, note],
     );
 
     const isPass = outcome === "pass";
-    const nextConsecutive = isPass ? step.consecutive_passes + 1 : 0;
+    const isNeedsWork = outcome === "needs_work";
+    const nextConsecutive = isPass ? step.consecutive_passes + 1 : isNeedsWork ? 0 : step.consecutive_passes;
     const nextStatus = nextConsecutive >= 3 ? "done" : "in_progress";
 
     const updated = await client.query(
@@ -578,7 +587,7 @@ app.post("/v1/goal-steps/:id/attempt", async (req, res) => {
       [
         stepId,
         isPass ? 1 : 0,
-        isPass ? 0 : 1,
+        isNeedsWork ? 1 : 0,
         nextConsecutive,
         nextStatus,
       ],
@@ -646,14 +655,18 @@ app.post("/v1/goal-steps/:id/attempt/undo", async (req, res) => {
     for (const attempt of attempts) {
       if (attempt.outcome === "pass") {
         passCount += 1;
-      } else {
+      } else if (attempt.outcome === "needs_work") {
         needsWorkCount += 1;
       }
     }
 
     let consecutivePasses = 0;
     for (let index = attempts.length - 1; index >= 0; index -= 1) {
-      if (attempts[index].outcome === "pass") {
+      const outcome = attempts[index].outcome;
+      if (outcome === "neutral") {
+        continue;
+      }
+      if (outcome === "pass") {
         consecutivePasses += 1;
       } else {
         break;
@@ -1055,10 +1068,33 @@ async function ensureSchemaCompatibility() {
       create table if not exists goal_attempts (
         id uuid primary key default gen_random_uuid(),
         goal_step_id uuid not null references goal_steps(id) on delete cascade,
-        outcome text not null check (outcome in ('pass', 'needs_work')),
+        outcome text not null check (outcome in ('pass', 'needs_work', 'neutral')),
+        duration_seconds integer not null default 0 check (duration_seconds >= 0),
         note text,
         created_at timestamptz not null default now()
       )
+    `);
+    await client.query(`
+      alter table goal_attempts
+      add column if not exists duration_seconds integer not null default 0
+    `);
+    await client.query(`
+      alter table goal_attempts
+      drop constraint if exists goal_attempts_duration_seconds_check
+    `);
+    await client.query(`
+      alter table goal_attempts
+      add constraint goal_attempts_duration_seconds_check
+      check (duration_seconds >= 0)
+    `);
+    await client.query(`
+      alter table goal_attempts
+      drop constraint if exists goal_attempts_outcome_check
+    `);
+    await client.query(`
+      alter table goal_attempts
+      add constraint goal_attempts_outcome_check
+      check (outcome in ('pass', 'needs_work', 'neutral'))
     `);
     await client.query(`
       create table if not exists goal_suggestions (

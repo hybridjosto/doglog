@@ -23,8 +23,8 @@
 
     <header class="home-header">
       <div>
-        <h1>Hi, Iggy! <span class="bone">🦴</span></h1>
-        <p>Ready for some training today?</p>
+        <h1>Behavior Log</h1>
+        <p>Log what happened in one tap.</p>
       </div>
       <div class="avatar-wrap">
         <img
@@ -36,63 +36,18 @@
       </div>
     </header>
 
-    <section class="quick-log">
-      <button id="positiveBtn" class="quick-btn quick-btn-good">
-        <span class="quick-icon material-icons">add</span>
-        <span class="quick-title">Good Girl</span>
-        <span class="quick-sub">Quick Log</span>
-      </button>
-      <button id="negativeBtn" class="quick-btn quick-btn-work" type="button">
-        <span class="quick-icon material-icons">remove</span>
-        <span class="quick-title">Needs Work</span>
-        <span class="quick-sub">Quick Log</span>
-      </button>
-    </section>
-
-    <section class="card active-goal">
-      <div class="active-goal-bg"></div>
-      <div class="active-goal-content">
-        <div class="active-goal-head">
-          <div>
-            <span class="badge">Active Goal</span>
-            <h2 id="activeGoalTitle">No active goal yet</h2>
-          </div>
-          <span class="material-icons goal-icon">directions_walk</span>
-        </div>
-        <div class="goal-progress-row">
-          <span id="activeGoalProgressText">0% Completed</span>
-          <span id="activeGoalMastery">Mastery Level 0</span>
-        </div>
-        <div class="goal-progress-track">
-          <div id="activeGoalProgressBar" class="goal-progress-fill"></div>
-        </div>
-        <p id="activeGoalHint" class="goal-hint">
-          Create your first goal in Goal Studio to get a daily roadmap.
-        </p>
-        <a href="/goals.html" class="btn-link">Open Goal Studio</a>
-        <button id="retryAiBtn" class="btn-link btn-link-secondary" type="button" hidden>
-          Retry AI Steps
-        </button>
-      </div>
-    </section>
-
-    <section id="suggestedGoalCard" class="card" hidden>
+    <section class="card behavior-card">
       <div class="section-head">
-        <h3>Suggested Next Goal</h3>
-        <span id="suggestedGoalSource" class="task-pill">AI</span>
+        <h3>Negative Behaviors</h3>
       </div>
-      <h3 id="suggestedGoalTitle">-</h3>
-      <p id="suggestedGoalNotice" class="goal-hint"></p>
+      <div id="negativeBehaviourGrid" class="behavior-action-grid"></div>
     </section>
 
-    <section class="steps-section">
-      <div class="section-head">
-        <h3>Next Steps</h3>
-        <span id="taskCount" class="task-pill">0 Tasks</span>
-      </div>
-      <div id="nextStepsList" class="steps-list">
-        <p class="empty-copy">No steps yet. Generate steps from your goal page.</p>
-      </div>
+    <section class="card goal-link-card">
+      <h3>Goal Tracking</h3>
+      <p class="helper-copy">Training goals, milestones, and progress are on a separate page.</p>
+      <a href="/training.html" class="btn-link">Open Training</a>
+      <a href="/goals.html" class="btn-link">Open Goal Tracking</a>
     </section>
 
     <section class="card summary-card">
@@ -113,23 +68,23 @@
     <nav class="bottom-nav">
       <a class="nav-item nav-active" href="/">
         <span class="material-icons">home</span>
-        <span>Home</span>
+        <span>Log</span>
       </a>
       <a class="nav-item" href="/history.html">
         <span class="material-icons">history</span>
         <span>History</span>
       </a>
-      <a href="/goals.html" class="fab">
-        <span class="material-icons">add</span>
+      <a href="/training.html" class="fab">
+        <span class="material-icons">school</span>
       </a>
-      <a class="nav-item" href="/goals-library.html">
-        <span class="material-icons">menu_book</span>
-        <span>Library</span>
+      <a class="nav-item" href="/training.html">
+        <span class="material-icons">school</span>
+        <span>Training</span>
       </a>
-      <button class="nav-item" type="button" disabled>
-        <span class="material-icons">pets</span>
-        <span>Profile</span>
-      </button>
+      <a class="nav-item" href="/goals.html">
+        <span class="material-icons">track_changes</span>
+        <span>Goals</span>
+      </a>
       <span id="queueCountNav" class="queue-badge">0</span>
     </nav>
 
@@ -137,16 +92,47 @@
       <div class="behaviour-popover" role="dialog" aria-label="Log a negative behaviour">
         <div class="behaviour-popover-head">
           <div>
-            <h3>Common challenges</h3>
-            <p class="helper-copy">
-              Tap a behaviour to log it with context already filled in.
-            </p>
+            <h3>Negative Behavior Context</h3>
+            <p id="selectedNegativeBehaviour" class="helper-copy"></p>
           </div>
           <button id="negativeBehaviourClose" class="behaviour-popover-close" type="button" aria-label="Close behaviour picker">
             <span class="material-icons">close</span>
           </button>
         </div>
-        <div id="negativeBehaviourGrid" class="behaviour-grid"></div>
+        <form id="negativeContextForm" class="negative-context-form">
+          <label class="negative-field">
+            <span>Location</span>
+            <input id="negativeLocationInput" type="text" placeholder="e.g., Front yard" />
+          </label>
+          <label class="negative-field">
+            <span>Severity</span>
+            <select id="negativeSeveritySelect">
+              <option value="2">Low</option>
+              <option value="3" selected>Medium</option>
+              <option value="4">High</option>
+              <option value="5">Extreme</option>
+            </select>
+          </label>
+          <label class="negative-field">
+            <span>Arousal Level</span>
+            <select id="negativeArousalSelect">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+          <label class="negative-field">
+            <span>Extra Context</span>
+            <textarea
+              id="negativeContextNotes"
+              rows="3"
+              placeholder="Trigger, people nearby, distractions, what happened..."
+            ></textarea>
+          </label>
+          <button id="negativeContextSave" class="negative-save-btn" type="submit">
+            Save Negative Log
+          </button>
+        </form>
       </div>
     </div>
 

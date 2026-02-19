@@ -71,7 +71,8 @@ create table goal_step_events (
 create table goal_attempts (
   id uuid primary key default gen_random_uuid(),
   goal_step_id uuid not null references goal_steps(id) on delete cascade,
-  outcome text not null check (outcome in ('pass', 'needs_work')),
+  outcome text not null check (outcome in ('pass', 'needs_work', 'neutral')),
+  duration_seconds integer not null default 0 check (duration_seconds >= 0),
   note text,
   created_at timestamptz not null default now()
 );

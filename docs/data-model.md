@@ -80,7 +80,8 @@ Tracks each subtask attempt outcome for auditability.
 
 - `id uuid pk`
 - `goal_step_id uuid fk -> goal_steps.id`
-- `outcome text` (`pass`, `needs_work`)
+- `outcome text` (`pass`, `needs_work`, `neutral`)
+- `duration_seconds integer not null default 0`
 - `note text`
 - `created_at timestamptz not null`
 

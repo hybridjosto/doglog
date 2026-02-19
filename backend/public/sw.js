@@ -1,4 +1,4 @@
-const cacheName = "doglog-static-v6";
+const cacheName = "doglog-static-v7";
 const staticAssets = [
   "/",
   "/index.html",
@@ -6,6 +6,8 @@ const staticAssets = [
   "/app.js",
   "/history.html",
   "/history.js",
+  "/training.html",
+  "/training.js",
   "/goals.html",
   "/goals.css",
   "/goals.js",

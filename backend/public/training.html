@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#36454F" />
-    <title>Doglog History</title>
+    <title>Doglog Training</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -19,27 +19,35 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body class="home-body">
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
     <header class="history-header">
       <div>
-        <h1>Training History</h1>
-        <p>Review logged wins and needs work moments.</p>
+        <h1>Training Attempts</h1>
+        <p>Record each rep against your active goal.</p>
       </div>
-      <button id="historyRefreshBtn" class="text-btn" type="button">Refresh</button>
+      <button id="trainingRefreshBtn" class="text-btn" type="button">Refresh</button>
     </header>
 
-    <section class="history-controls">
-      <button class="history-filter is-active" type="button" data-filter="all">All</button>
-      <button class="history-filter" type="button" data-filter="positive">Wins</button>
-      <button class="history-filter" type="button" data-filter="negative">Needs Work</button>
+    <section class="card training-goal-card">
+      <div class="section-head">
+        <h3>Active Goal</h3>
+        <span id="trainingGoalPill" class="task-pill">None</span>
+      </div>
+      <h3 id="trainingGoalTitle">No active goal yet</h3>
+      <p id="trainingGoalMeta" class="helper-copy">
+        Activate a goal to start logging attempts.
+      </p>
+      <a href="/goals.html" class="btn-link">Open Goals</a>
     </section>
 
-    <section class="card">
+    <section class="steps-section">
       <div class="section-head">
-        <h3 id="historyTitle">All Logs</h3>
-        <span id="historyCount" class="task-pill">0</span>
+        <h3>Goal Steps</h3>
+        <span id="trainingTaskCount" class="task-pill">0 Tasks</span>
       </div>
-      <div id="historyEventList" class="event-list">
-        <p class="empty-copy">Loading logs...</p>
+      <div id="trainingStepsList" class="steps-list">
+        <p class="empty-copy">No active goal steps yet.</p>
       </div>
     </section>
 
@@ -48,14 +56,14 @@
         <span class="material-icons">home</span>
         <span>Log</span>
       </a>
-      <a class="nav-item nav-active" href="/history.html">
+      <a class="nav-item" href="/history.html">
         <span class="material-icons">history</span>
         <span>History</span>
       </a>
       <a href="/training.html" class="fab">
         <span class="material-icons">school</span>
       </a>
-      <a class="nav-item" href="/training.html">
+      <a class="nav-item nav-active" href="/training.html">
         <span class="material-icons">school</span>
         <span>Training</span>
       </a>
@@ -66,6 +74,6 @@
       <span id="queueCountNav" class="queue-badge">0</span>
     </nav>
 
-    <script type="module" src="/history.js"></script>
+    <script type="module" src="/training.js"></script>
   </body>
 </html>
